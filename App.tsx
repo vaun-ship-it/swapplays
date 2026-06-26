@@ -118,7 +118,7 @@ const mediaCategories: MediaCategory[] = ["Music", "Podcast", "Food", "Sports", 
 const primaryTabs: TabName[] = ["campaigns", "play", "leaderboard"];
 const watchAdsControllerEmail = "cavauntechnologies@gmail.com";
 const regularMediaFundedEmail = "drekray@gmail.com";
-const regularMediaFundedPoints = 100000000;
+const regularMediaFundedPoints = 10000000;
 
 const starterCampaigns: Campaign[] = [
   {
@@ -423,8 +423,8 @@ export default function App() {
 
     setProfileEmail(profileEmailValue);
     setProfileName(profile?.name || fallbackName || profileEmailValue.split("@")[0] || "Swap Plays User");
-    setPoints(isRegularMediaFundedAccount ? Math.max(profilePoints, regularMediaFundedPoints) : profilePoints);
-    setOverallPoints(isRegularMediaFundedAccount ? Math.max(profileOverallPoints, regularMediaFundedPoints) : profileOverallPoints);
+    setPoints(isRegularMediaFundedAccount ? regularMediaFundedPoints : profilePoints);
+    setOverallPoints(isRegularMediaFundedAccount ? regularMediaFundedPoints : profileOverallPoints);
     setProfilePhoto(profile?.profile_photo_url || "");
     setProfileLink(profile?.profile_link || "");
     setAutoplayPlan(profile?.autoplay_plan || null);
@@ -2509,7 +2509,7 @@ function LeaderboardScreen({ campaigns, leaderboardProfiles, userId, profileName
     }))
   ].sort((a, b) => b.plays - a.plays).slice(0, 100);
   const currentUserRow: LeaderboardRow = normalizedProfileEmail === regularMediaFundedEmail
-    ? { ...fundedAccountRow, points: Math.max(overallPoints, regularMediaFundedPoints), photo: profilePhoto || fundedAccountRow.photo, externalLink: profileLink.trim() }
+    ? { ...fundedAccountRow, points: regularMediaFundedPoints, photo: profilePhoto || fundedAccountRow.photo, externalLink: profileLink.trim() }
     : { ...leaderboardUsers[0], id: "current-user", name: profileName, points: overallPoints, photo: profilePhoto || leaderboardUsers[0].photo, externalLink: profileLink.trim() };
   const realProfileRows: LeaderboardRow[] = leaderboardProfiles.map((profile, index) => ({
     id: `profile-${profile.id}`,
