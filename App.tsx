@@ -1134,7 +1134,9 @@ function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCrede
   const [submitting, setSubmitting] = useState(false);
   const isCreate = mode === "create";
   const loginArtRatio = 1083 / 1452;
-  const loginArtWidth = Math.min(width - 20, (height - 52) * loginArtRatio, 560);
+  const isMobileWebLogin = Platform.OS === "web" && width < 700;
+  const loginBottomPadding = isMobileWebLogin ? 132 : 24;
+  const loginArtWidth = Math.min(width - 20, Math.max(420, height - loginBottomPadding) * loginArtRatio, 560);
   const loginArtHeight = loginArtWidth / loginArtRatio;
   const visibleError = error || authError;
 
@@ -1178,7 +1180,7 @@ function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCrede
 
   return (
     <View style={styles.loginScreen}>
-      <ScrollView contentContainerStyle={styles.loginScroll} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.loginScroll, { paddingBottom: loginBottomPadding }]} keyboardShouldPersistTaps="handled">
         <ImageBackground
           source={require("./assets/login-screen-art.png")}
           resizeMode="cover"
