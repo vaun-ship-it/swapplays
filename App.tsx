@@ -1182,7 +1182,14 @@ function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCrede
 
   return (
     <View style={styles.loginScreen}>
-      <ScrollView contentContainerStyle={[styles.loginScroll, isMobileWebLogin && styles.loginScrollMobile, { paddingBottom: loginBottomPadding }]} keyboardShouldPersistTaps="handled" scrollEnabled={!isMobileWebLogin}>
+      <ScrollView
+        contentContainerStyle={[styles.loginScroll, isMobileWebLogin && styles.loginScrollMobile, { paddingBottom: loginBottomPadding }]}
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={!isMobileWebLogin}
+        showsHorizontalScrollIndicator={false}
+        showsVerticalScrollIndicator={false}
+        style={styles.loginScroller}
+      >
         <ImageBackground
           source={require("./assets/login-screen-art.png")}
           resizeMode="cover"
@@ -2888,7 +2895,8 @@ const styles = StyleSheet.create({
   app: { flex: 1, backgroundColor: "#f6f8fb" },
   loadingScreen: { flex: 1, backgroundColor: "#050506", alignItems: "center", justifyContent: "center" },
   loadingText: { color: "#fff", fontSize: 22, fontWeight: "900" },
-  loginScreen: { flex: 1, backgroundColor: "#050506" },
+  loginScreen: { flex: 1, backgroundColor: "#050506", overflow: "hidden" },
+  loginScroller: { width: "100%" },
   loginScroll: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 10, paddingVertical: 8 },
   loginScrollMobile: { justifyContent: "center", paddingTop: 0 },
   loginArtwork: { alignSelf: "center", overflow: "hidden" },
