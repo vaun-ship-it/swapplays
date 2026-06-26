@@ -392,6 +392,7 @@ export default function App() {
   const activeAdCampaign = adCampaigns[adCampaignIndex % adCampaigns.length];
   const playCampaign = watchAdsMode ? activeAdCampaign : activeCampaign;
   const hasAutoplayAccess = Boolean(autoplayExpiresAt && Date.parse(autoplayExpiresAt) > Date.now());
+  const hasUnlimitedCampaignPoints = profileEmail.trim().toLowerCase() === watchAdsControllerEmail;
   const battleCampaigns = battlePairIds
     ? battlePairIds
         .map((id) => playableCampaigns.find((campaign) => campaign.id === id))
@@ -499,7 +500,9 @@ export default function App() {
 
     if (error) return error.message;
     setCampaigns((items) => [campaignFromRow(data), ...items]);
-    setPoints((value) => value - draft.pointsCost);
+    if (!hasUnlimitedCampaignPoints) {
+      setPoints((value) => value - draft.pointsCost);
+    }
     setCreateOpen(false);
     setTab("campaigns");
     return "";
@@ -973,7 +976,8 @@ export default function App() {
         />
         {createOpen ? (
           <CreateCampaign
-            points={points}
+            points={hasUnlimitedCampaignPoints ? Number.MAX_SAFE_INTEGER : points}
+            hasUnlimitedPoints={hasUnlimitedCampaignPoints}
             onCancel={() => setCreateOpen(false)}
             onCreate={createCampaign}
           />
@@ -1422,7 +1426,7 @@ function CampaignRow({ campaign, onDelete }: { campaign: Campaign; onDelete: () 
   );
 }
 
-function CreateCampaign({ points, onCancel, onCreate }: { points: number; onCancel: () => void; onCreate: (campaign: CampaignDraft) => Promise<string | void> }) {
+function CreateCampaign({ points, hasUnlimitedPoints = false, onCancel, onCreate }: { points: number; hasUnlimitedPoints?: boolean; onCancel: () => void; onCreate: (campaign: CampaignDraft) => Promise<string | void> }) {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<MediaCategory>("Music");
@@ -1603,8 +1607,8 @@ function CreateCampaign({ points, onCancel, onCreate }: { points: number; onCanc
       <Stepper label="Time (seconds)" value={seconds} onMinus={() => setSecondsIndex((index) => Math.max(0, index - 1))} onPlus={() => setSecondsIndex((index) => Math.min(secondOptions.length - 1, index + 1))} />
       <View style={styles.totalRow}>
         <MaterialCommunityIcons name="calculator" size={24} color="#1d8af0" />
-        <Text style={styles.totalLabel}>Total Points</Text>
-        <Text style={styles.totalValue}>{cost}</Text>
+        <Text style={styles.totalLabel}>{hasUnlimitedPoints ? "Total Points Covered" : "Total Points"}</Text>
+        <Text style={styles.totalValue}>{hasUnlimitedPoints ? "Unlimited" : cost}</Text>
       </View>
       {!hasEnoughPoints ? (
         <View style={styles.notEnoughPoints}>
