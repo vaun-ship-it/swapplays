@@ -1186,7 +1186,7 @@ function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCrede
         <ImageBackground
           source={require("./assets/login-screen-art.png")}
           resizeMode="cover"
-          style={[styles.loginArtwork, { width: loginArtWidth, height: loginArtHeight }]}
+          style={[styles.loginArtwork, isMobileWebLogin && styles.loginArtworkMobile, { width: loginArtWidth, height: loginArtHeight }]}
           imageStyle={styles.loginArtworkImage}
         >
           <View style={styles.loginRealCard}>
@@ -2892,6 +2892,7 @@ const styles = StyleSheet.create({
   loginScroll: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 10, paddingVertical: 8 },
   loginScrollMobile: { justifyContent: "flex-start", paddingTop: 16 },
   loginArtwork: { alignSelf: "center", overflow: "hidden" },
+  loginArtworkMobile: { overflow: "visible", marginBottom: 220 },
   loginArtworkImage: { borderRadius: 0 },
   loginRealCard: { position: "absolute", left: "4.8%", right: "4.8%", top: "54.2%", minHeight: "37.4%", zIndex: 30, borderRadius: 17, backgroundColor: "#fff", padding: 10, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 9 } },
   loginRealModeRow: { flexDirection: "row", gap: 12, marginBottom: 7 },
