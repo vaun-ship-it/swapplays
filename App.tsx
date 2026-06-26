@@ -2689,7 +2689,7 @@ function ProfileDrawer({
         <View style={styles.drawer}>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.drawerScrollContent}>
             <View style={styles.profileHeader}>
-              <View>
+              <View style={styles.profileHeaderMain}>
                 <Pressable style={styles.avatarWrap} onPress={pickProfilePhoto}>
                   <View style={styles.avatar}>
                     {profilePhoto ? (
@@ -2735,11 +2735,11 @@ function ProfileDrawer({
               </Pressable>
             </View>
             <View style={styles.drawerPoints}>
-              <View>
+              <View style={styles.drawerPointsText}>
                 <Text style={styles.drawerLabel}>Overall points</Text>
-                <Text style={styles.drawerSub}>Campaign points: {points}</Text>
+                <Text style={styles.drawerSub}>Campaign points: {points.toLocaleString()}</Text>
               </View>
-              <View style={styles.overallBubble}><Text style={styles.overallBubbleText}>{overallPoints}</Text></View>
+              <View style={styles.overallBubble}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62} style={styles.overallBubbleText}>{overallPoints.toLocaleString()}</Text></View>
             </View>
             <Pressable style={styles.badgeLine} disabled={badge === "coin"} onPress={onBadgePress}>
               <BadgeIcon badge={badge} />
@@ -3286,29 +3286,31 @@ const styles = StyleSheet.create({
   bottomTextActive: { color: "#1d8af0" },
   drawerBackdrop: { flex: 1, flexDirection: "row", backgroundColor: "rgba(0,0,0,0.58)" },
   drawerShade: { ...StyleSheet.absoluteFillObject },
-  drawer: { width: "84%", maxWidth: 430, height: "100%", backgroundColor: "#fff", paddingTop: Platform.OS === "android" ? 30 : 20, paddingHorizontal: 18, borderTopRightRadius: 8, borderBottomRightRadius: 8 },
+  drawer: { width: "82%", maxWidth: 430, height: "100%", backgroundColor: "#fff", paddingTop: Platform.OS === "android" ? 30 : 20, paddingHorizontal: 18, borderTopRightRadius: 8, borderBottomRightRadius: 8 },
   drawerScrollContent: { paddingBottom: 18 },
-  profileHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  privacyInfoButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#111318", borderWidth: 1, borderColor: "#2f9bff", alignItems: "center", justifyContent: "center", marginTop: 2, shadowColor: "#1d8af0", shadowOpacity: 0.38, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
+  profileHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  profileHeaderMain: { flex: 1, minWidth: 0 },
+  privacyInfoButton: { width: 32, height: 32, borderRadius: 16, flexShrink: 0, backgroundColor: "#111318", borderWidth: 1, borderColor: "#2f9bff", alignItems: "center", justifyContent: "center", marginTop: 2, marginRight: 4, shadowColor: "#1d8af0", shadowOpacity: 0.38, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
   avatarWrap: { width: 78, marginBottom: 8 },
   avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: "#111318", borderWidth: 3, borderColor: "#e6f3ff", shadowColor: "#1d8af0", shadowRadius: 10, shadowOpacity: 0.26, alignItems: "center", justifyContent: "center", marginBottom: 8 },
   avatarImage: { width: "100%", height: "100%", borderRadius: 36, resizeMode: "cover" },
   avatarEditBadge: { position: "absolute", right: 0, bottom: 5, width: 25, height: 25, borderRadius: 12.5, backgroundColor: "#1d8af0", borderWidth: 2, borderColor: "#fff", alignItems: "center", justifyContent: "center" },
   avatarText: { color: "#fff", fontSize: 34 },
   profileName: { fontSize: 24, fontWeight: "900" },
-  profileNameInput: { minWidth: 220, maxWidth: 300, minHeight: 38, borderRadius: 8, borderWidth: 1, borderColor: "#d6dde8", backgroundColor: "#fff", color: "#000", fontSize: 19, fontWeight: "900", paddingHorizontal: 10, paddingVertical: 4 },
-  profileLinkInput: { minWidth: 220, maxWidth: 300, minHeight: 36, borderRadius: 8, borderWidth: 1, borderColor: "#d6dde8", backgroundColor: "#fff", color: "#111318", fontSize: 14, fontWeight: "800", paddingHorizontal: 10, paddingVertical: 5, marginTop: 8 },
+  profileNameInput: { width: "100%", maxWidth: 300, minHeight: 38, borderRadius: 8, borderWidth: 1, borderColor: "#d6dde8", backgroundColor: "#fff", color: "#000", fontSize: 19, fontWeight: "900", paddingHorizontal: 10, paddingVertical: 4 },
+  profileLinkInput: { width: "100%", maxWidth: 300, minHeight: 36, borderRadius: 8, borderWidth: 1, borderColor: "#d6dde8", backgroundColor: "#fff", color: "#111318", fontSize: 14, fontWeight: "800", paddingHorizontal: 10, paddingVertical: 5, marginTop: 8 },
   profileLinkInputError: { borderColor: "#d93025", backgroundColor: "#fff7f7" },
   profileLinkErrorRow: { maxWidth: 280, flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
   profileLinkErrorText: { flex: 1, color: "#d93025", fontSize: 12, fontWeight: "800" },
   profileLinkReadyRow: { maxWidth: 280, flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
   profileLinkReadyText: { flex: 1, color: "#148c45", fontSize: 12, fontWeight: "800" },
   profileEmail: { fontSize: 14, color: "#777", marginTop: 6 },
-  drawerPoints: { marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#f3f6fb", borderRadius: 8, padding: 11 },
+  drawerPoints: { marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, backgroundColor: "#f3f6fb", borderRadius: 8, padding: 11 },
+  drawerPointsText: { flex: 1, minWidth: 0 },
   drawerLabel: { fontSize: 18, fontWeight: "900" },
   drawerSub: { color: "#777", marginTop: 2, fontSize: 13 },
-  overallBubble: { minWidth: 62, height: 40, borderRadius: 8, backgroundColor: "#000", alignItems: "center", justifyContent: "center", paddingHorizontal: 11 },
-  overallBubbleText: { color: "#fff", fontSize: 19, fontWeight: "900" },
+  overallBubble: { width: 118, maxWidth: "45%", height: 40, borderRadius: 8, backgroundColor: "#000", alignItems: "center", justifyContent: "center", paddingHorizontal: 7 },
+  overallBubbleText: { color: "#fff", fontSize: 17, fontWeight: "900" },
   badgeLine: { flexDirection: "row", gap: 10, alignItems: "center", marginTop: 10 },
   drawerItem: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#f0f2f5" },
   drawerItemText: { fontSize: 17, fontWeight: "900", color: "#111318" },
