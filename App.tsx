@@ -2890,7 +2890,7 @@ const styles = StyleSheet.create({
   loadingText: { color: "#fff", fontSize: 22, fontWeight: "900" },
   loginScreen: { flex: 1, backgroundColor: "#050506" },
   loginScroll: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 10, paddingVertical: 8 },
-  loginScrollMobile: { justifyContent: "flex-start", paddingTop: 16 },
+  loginScrollMobile: { justifyContent: "center", paddingTop: 0 },
   loginArtwork: { alignSelf: "center", overflow: "hidden" },
   loginArtworkMobile: { overflow: "visible", marginBottom: 0 },
   loginArtworkImage: { borderRadius: 0 },
