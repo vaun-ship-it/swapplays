@@ -9,6 +9,9 @@ create table if not exists public.profiles (
   overall_points integer not null default 0,
   profile_photo_url text,
   profile_link text,
+  autoplay_active boolean not null default false,
+  autoplay_plan text,
+  autoplay_expires_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

@@ -45,6 +45,9 @@ type ProfileRow = {
   overall_points: number | null;
   profile_photo_url: string | null;
   profile_link: string | null;
+  autoplay_active: boolean | null;
+  autoplay_plan: string | null;
+  autoplay_expires_at: string | null;
 };
 
 type CampaignRow = {
@@ -66,6 +69,8 @@ type CampaignRow = {
 type CampaignDraft = Omit<Campaign, "id" | "artist" | "platform" | "playsDone" | "createdAt"> & {
   mediaFile?: File;
 };
+
+type AutoplayPlanId = "week" | "month" | "plus";
 
 type Campaign = {
   id: string;
@@ -360,6 +365,9 @@ export default function App() {
   const [points, setPoints] = useState(0);
   const [overallPoints, setOverallPoints] = useState(0);
   const [autoplay, setAutoplay] = useState(false);
+  const [autoplayPlan, setAutoplayPlan] = useState<string | null>(null);
+  const [autoplayExpiresAt, setAutoplayExpiresAt] = useState("");
+  const [paypalNotice, setPaypalNotice] = useState("");
   const [activeCampaignIndex, setActiveCampaignIndex] = useState(0);
   const [watchAdsMode, setWatchAdsMode] = useState(false);
   const [adCampaignIndex, setAdCampaignIndex] = useState(0);
@@ -377,6 +385,7 @@ export default function App() {
   const activeCampaign = playableCampaigns.length > 0 ? playableCampaigns[activeCampaignIndex % playableCampaigns.length] : undefined;
   const activeAdCampaign = appAdCampaigns[adCampaignIndex % appAdCampaigns.length];
   const playCampaign = watchAdsMode ? activeAdCampaign : activeCampaign;
+  const hasAutoplayAccess = Boolean(autoplayExpiresAt && Date.parse(autoplayExpiresAt) > Date.now());
   const battleCampaigns = battlePairIds
     ? battlePairIds
         .map((id) => playableCampaigns.find((campaign) => campaign.id === id))
@@ -393,11 +402,14 @@ export default function App() {
     setOverallPoints(profile?.overall_points ?? 0);
     setProfilePhoto(profile?.profile_photo_url || "");
     setProfileLink(profile?.profile_link || "");
+    setAutoplayPlan(profile?.autoplay_plan || null);
+    setAutoplayExpiresAt(profile?.autoplay_expires_at || "");
+    setAutoplay(Boolean(profile?.autoplay_active && profile?.autoplay_expires_at && Date.parse(profile.autoplay_expires_at) > Date.now()));
   }
 
   async function loadOrCreateProfile(user: { id: string; email?: string | null }, fallbackName?: string) {
     const email = user.email || "";
-    const profileColumns = "id,email,name,points,overall_points,profile_photo_url,profile_link";
+    const profileColumns = "id,email,name,points,overall_points,profile_photo_url,profile_link,autoplay_active,autoplay_plan,autoplay_expires_at";
     const { data, error } = await supabase
       .from(tables.profiles)
       .select(profileColumns)
@@ -516,6 +528,51 @@ export default function App() {
       .then(({ error }) => {
         if (error) setAuthError(error.message);
       });
+  }
+
+  async function startPayPalCheckout(plan: AutoplayPlanId) {
+    if (Platform.OS !== "web") {
+      Alert.alert("PayPal checkout", "PayPal checkout is available on the website.");
+      return "PayPal checkout is available on the website.";
+    }
+    if (!userId) {
+      return "Log in before buying Autoplay.";
+    }
+
+    setPaypalNotice("");
+    const response = await fetch("/api/paypal/create-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        plan,
+        userId,
+        origin: window.location.origin
+      })
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      return payload.error || "Could not start PayPal checkout.";
+    }
+    window.location.href = payload.approvalUrl;
+    return "";
+  }
+
+  async function capturePayPalOrder(orderId: string) {
+    const response = await fetch("/api/paypal/capture-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId })
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || "Could not confirm PayPal payment.");
+    }
+    setAutoplay(true);
+    setAutoplayPlan(payload.plan || null);
+    setAutoplayExpiresAt(payload.autoplayExpiresAt || "");
+    setAutoplayModal(false);
+    setPaypalNotice("Autoplay is active.");
+    Alert.alert("Autoplay enabled", "Your PayPal payment was confirmed and Autoplay is active.");
   }
 
   useEffect(() => {
@@ -799,11 +856,42 @@ export default function App() {
   function handleAutoplayToggle(nextValue: boolean) {
     vibrateLight();
     if (nextValue) {
+      if (hasAutoplayAccess) {
+        setAutoplay(true);
+        return;
+      }
       setAutoplayModal(true);
       return;
     }
     setAutoplay(false);
   }
+
+  const paypalCaptureStarted = useRef(false);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || !isLoggedIn || paypalCaptureStarted.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const paypalStatus = params.get("paypal");
+    const orderId = params.get("token");
+    if (paypalStatus === "cancel") {
+      setPaypalNotice("PayPal checkout was cancelled.");
+      Alert.alert("PayPal cancelled", "Autoplay was not activated.");
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+    if (paypalStatus !== "success" || !orderId) return;
+
+    paypalCaptureStarted.current = true;
+    setPaypalNotice("Confirming PayPal payment...");
+    capturePayPalOrder(orderId)
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : "Could not confirm PayPal payment.";
+        setPaypalNotice(message);
+      })
+      .finally(() => {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      });
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (!celebration) return;
@@ -950,11 +1038,8 @@ export default function App() {
         <AutoplayModal
           visible={autoplayModal}
           onClose={() => setAutoplayModal(false)}
-          onBuy={(plus) => {
-            setAutoplay(true);
-            setAutoplayModal(false);
-            Alert.alert("Autoplay enabled", plus ? "Autoplay Plus is active." : "Autoplay is active.");
-          }}
+          notice={paypalNotice}
+          onBuy={startPayPalCheckout}
         />
         {celebration && <ConfettiCelebration key={celebration.key} label={celebration.label} />}
         {plaqueAward && <PlaqueAchievementModal award={plaqueAward} onClose={() => setPlaqueAward(null)} />}
@@ -2684,8 +2769,19 @@ function DrawerItem({ label, onPress }: { label: string; onPress: () => void }) 
   );
 }
 
-function AutoplayModal({ visible, onClose, onBuy }: { visible: boolean; onClose: () => void; onBuy: (plus: boolean) => void }) {
+function AutoplayModal({ visible, onClose, onBuy, notice }: { visible: boolean; onClose: () => void; onBuy: (plan: AutoplayPlanId) => Promise<string | void>; notice: string }) {
   const [activePlan, setActivePlan] = useState<string | null>(null);
+  const [buyingPlan, setBuyingPlan] = useState<AutoplayPlanId | null>(null);
+  const [error, setError] = useState("");
+
+  async function buyPlan(plan: AutoplayPlanId) {
+    setError("");
+    setBuyingPlan(plan);
+    const message = await onBuy(plan);
+    if (message) setError(message);
+    setBuyingPlan(null);
+  }
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
@@ -2693,8 +2789,8 @@ function AutoplayModal({ visible, onClose, onBuy }: { visible: boolean; onClose:
           <Image source={require("./assets/swap-plays-logo-transparent.png")} style={styles.modalLogo} />
           <Text style={styles.modalTitle}>Autoplay</Text>
           <View style={styles.planRow}>
-            <Plan id="week" price="$9.99" label="one week" activePlan={activePlan} setActivePlan={setActivePlan} onPress={() => onBuy(false)} />
-            <Plan id="month" price="$36.99" label="one month" activePlan={activePlan} setActivePlan={setActivePlan} onPress={() => onBuy(false)} dark />
+            <Plan id="week" price="$9.99" label="one week" activePlan={activePlan} setActivePlan={setActivePlan} onPress={() => buyPlan("week")} disabled={Boolean(buyingPlan)} loading={buyingPlan === "week"} />
+            <Plan id="month" price="$36.99" label="one month" activePlan={activePlan} setActivePlan={setActivePlan} onPress={() => buyPlan("month")} disabled={Boolean(buyingPlan)} loading={buyingPlan === "month"} dark />
           </View>
           <Pressable
             style={[styles.plusPlan, activePlan === "plus" && styles.planActive]}
@@ -2704,12 +2800,16 @@ function AutoplayModal({ visible, onClose, onBuy }: { visible: boolean; onClose:
             onPressOut={() => setActivePlan(null)}
             onFocus={() => setActivePlan("plus")}
             onBlur={() => setActivePlan(null)}
-            onPress={() => onBuy(true)}
+            disabled={Boolean(buyingPlan)}
+            onPress={() => buyPlan("plus")}
           >
             <Text style={styles.plusPrice}>$399.99</Text>
             <Text style={styles.plusLabel}>yearly subscription with no ads</Text>
-            <Text style={styles.plusCta}>Get Autoplay Plus</Text>
+            <Text style={styles.plusCta}>{buyingPlan === "plus" ? "Opening PayPal..." : "Get Autoplay Plus"}</Text>
           </Pressable>
+          {error || notice ? (
+            <Text style={[styles.paypalModalNotice, error && styles.paypalModalError]}>{error || notice}</Text>
+          ) : null}
           <Pressable style={styles.noThanks} onPress={onClose}>
             <Text style={styles.noThanksText}>No, Thanks!</Text>
           </Pressable>
@@ -2726,7 +2826,9 @@ function Plan({
   dark,
   activePlan,
   setActivePlan,
-  onPress
+  onPress,
+  disabled,
+  loading
 }: {
   id: string;
   price: string;
@@ -2735,6 +2837,8 @@ function Plan({
   activePlan: string | null;
   setActivePlan: (id: string | null) => void;
   onPress: () => void;
+  disabled?: boolean;
+  loading?: boolean;
 }) {
   const active = activePlan === id;
   return (
@@ -2746,11 +2850,12 @@ function Plan({
       onPressOut={() => setActivePlan(null)}
       onFocus={() => setActivePlan(id)}
       onBlur={() => setActivePlan(null)}
+      disabled={disabled}
       onPress={onPress}
     >
       <Text style={[styles.planPrice, dark && styles.planDarkText]}>{price}</Text>
       <Text style={[styles.planText, dark && styles.planDarkText]}>for {label}</Text>
-      <Text style={styles.planCta}>Get Autoplay</Text>
+      <Text style={styles.planCta}>{loading ? "Opening PayPal..." : "Get Autoplay"}</Text>
     </Pressable>
   );
 }
@@ -3204,6 +3309,8 @@ const styles = StyleSheet.create({
   plusPrice: { fontSize: 22, fontWeight: "900" },
   plusLabel: { color: "#777", textAlign: "center", marginTop: 4, fontSize: 13 },
   plusCta: { color: "#0e62c4", fontWeight: "900", marginTop: 8, fontSize: 13 },
+  paypalModalNotice: { color: "#148c45", fontSize: 12, fontWeight: "900", textAlign: "center", marginTop: 10, lineHeight: 16 },
+  paypalModalError: { color: "#d93025" },
   noThanks: { padding: 12 },
   noThanksText: { color: "#777", fontSize: 14 }
 });
