@@ -53,6 +53,7 @@ type ProfileRow = {
 type CampaignRow = {
   id: string;
   user_id: string;
+  owner_email: string | null;
   title: string;
   category: string;
   media_url: string;
@@ -81,6 +82,7 @@ type Campaign = {
   mediaKind: MediaKind;
   thumbnailUrl?: string;
   externalLink?: string;
+  ownerEmail?: string;
   platform: PlatformKind;
   playsTarget: number;
   secondsTarget: number;
@@ -105,6 +107,7 @@ const platformMeta: Record<PlatformKind, { label: string; color: string; icon: k
 
 const mediaCategories: MediaCategory[] = ["Music", "Podcast", "Food", "Sports", "Gaming", "Comedy", "Other"];
 const primaryTabs: TabName[] = ["campaigns", "play", "leaderboard"];
+const watchAdsControllerEmail = "cavauntechnologies@gmail.com";
 
 const starterCampaigns: Campaign[] = [
   {
@@ -213,6 +216,7 @@ function campaignFromRow(row: CampaignRow): Campaign {
     id: row.id,
     title: row.title,
     artist: "Media",
+    ownerEmail: row.owner_email || undefined,
     category: normalizeCategory(row.category),
     url: row.media_url,
     mediaKind: row.media_kind === "video" ? "video" : "audio",
@@ -383,7 +387,9 @@ export default function App() {
   const [selectedPlayCategories, setSelectedPlayCategories] = useState<MediaCategory[]>(mediaCategories);
   const playableCampaigns = campaigns.filter((campaign) => campaign.playsDone < campaign.playsTarget && selectedPlayCategories.includes(campaign.category));
   const activeCampaign = playableCampaigns.length > 0 ? playableCampaigns[activeCampaignIndex % playableCampaigns.length] : undefined;
-  const activeAdCampaign = appAdCampaigns[adCampaignIndex % appAdCampaigns.length];
+  const controllerAdCampaigns = campaigns.filter((campaign) => campaign.playsDone < campaign.playsTarget && campaign.ownerEmail?.trim().toLowerCase() === watchAdsControllerEmail);
+  const adCampaigns = controllerAdCampaigns.length > 0 ? controllerAdCampaigns : appAdCampaigns;
+  const activeAdCampaign = adCampaigns[adCampaignIndex % adCampaigns.length];
   const playCampaign = watchAdsMode ? activeAdCampaign : activeCampaign;
   const hasAutoplayAccess = Boolean(autoplayExpiresAt && Date.parse(autoplayExpiresAt) > Date.now());
   const battleCampaigns = battlePairIds
@@ -445,7 +451,7 @@ export default function App() {
   async function loadCampaigns() {
     const { data, error } = await supabase
       .from(tables.campaigns)
-      .select("id,user_id,title,category,media_url,media_kind,thumbnail_url,external_link,plays_target,seconds_target,points_cost,plays_done,created_at")
+      .select("id,user_id,owner_email,title,category,media_url,media_kind,thumbnail_url,external_link,plays_target,seconds_target,points_cost,plays_done,created_at")
       .order("created_at", { ascending: false })
       .returns<CampaignRow[]>();
 
@@ -476,6 +482,7 @@ export default function App() {
       .from(tables.campaigns)
       .insert({
         user_id: userId,
+        owner_email: profileEmail.trim().toLowerCase(),
         title: draft.title,
         category: draft.category,
         media_url: mediaUrl,
@@ -487,7 +494,7 @@ export default function App() {
         points_cost: draft.pointsCost,
         plays_done: 0
       })
-      .select("id,user_id,title,category,media_url,media_kind,thumbnail_url,external_link,plays_target,seconds_target,points_cost,plays_done,created_at")
+      .select("id,user_id,owner_email,title,category,media_url,media_kind,thumbnail_url,external_link,plays_target,seconds_target,points_cost,plays_done,created_at")
       .single<CampaignRow>();
 
     if (error) return error.message;
@@ -809,7 +816,7 @@ export default function App() {
       Alert.alert("No points earned", "You must let the countdown finish before ad points are added.");
     }
     setPlaySequence((value) => value + 1);
-    setAdCampaignIndex((index) => (index + 1) % appAdCampaigns.length);
+    setAdCampaignIndex((index) => (index + 1) % adCampaigns.length);
   }
 
   function startWatchAds() {

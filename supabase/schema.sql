@@ -19,6 +19,7 @@ create table if not exists public.profiles (
 create table if not exists public.campaigns (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
+  owner_email text,
   title text not null,
   category text not null check (category in ('Music', 'Podcast', 'Food', 'Sports', 'Gaming', 'Comedy', 'Other')),
   media_url text not null,
