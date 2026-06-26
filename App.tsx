@@ -2566,6 +2566,12 @@ function LeaderboardScreen({ campaigns, leaderboardProfiles, userId, profileName
         data={rows}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.leaderboardList}
+        ListEmptyComponent={
+          <View style={styles.leaderboardEmpty}>
+            <Text style={styles.leaderboardEmptyTitle}>No plays yet</Text>
+            <Text style={styles.leaderboardEmptyCopy}>Uploaded campaigns will appear here after they start getting plays.</Text>
+          </View>
+        }
         renderItem={({ item, index }) => (
           <View style={styles.leaderboardRow}>
             <View style={[styles.leaderRank, index < 3 && styles.leaderRankTop]}>
@@ -3321,6 +3327,9 @@ const styles = StyleSheet.create({
   leaderboardToggleText: { color: "#1d8af0", fontSize: 13, fontWeight: "900" },
   leaderboardToggleTextActive: { color: "#fff" },
   leaderboardList: { width: "96%", maxWidth: 900, alignSelf: "center", paddingBottom: 86 },
+  leaderboardEmpty: { minHeight: 150, borderRadius: 8, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", padding: 18, borderWidth: 1, borderColor: "#d6dde8" },
+  leaderboardEmptyTitle: { color: "#111318", fontSize: 18, fontWeight: "900" },
+  leaderboardEmptyCopy: { color: "#7a818e", fontSize: 13, fontWeight: "800", textAlign: "center", marginTop: 5 },
   leaderboardRow: { minHeight: 56, borderRadius: 8, backgroundColor: "#fff", flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 10, marginBottom: 8, shadowColor: "#172033", shadowOpacity: 0.05, shadowRadius: 9, shadowOffset: { width: 0, height: 4 } },
   leaderRank: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#eef2f7", alignItems: "center", justifyContent: "center" },
   leaderRankTop: { backgroundColor: "#0b0d12", borderWidth: 1, borderColor: "#d8ad23" },
