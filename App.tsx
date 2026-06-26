@@ -50,6 +50,15 @@ type ProfileRow = {
   autoplay_expires_at: string | null;
 };
 
+type PublicLeaderboardRow = {
+  id: string;
+  name: string | null;
+  overall_points: number | null;
+  profile_photo_url: string | null;
+  profile_link: string | null;
+  is_funded_account: boolean | null;
+};
+
 type CampaignRow = {
   id: string;
   user_id: string;
@@ -386,6 +395,7 @@ export default function App() {
   const [profileEmail, setProfileEmail] = useState("creator@example.com");
   const [profilePhoto, setProfilePhoto] = useState("");
   const [profileLink, setProfileLink] = useState("");
+  const [leaderboardProfiles, setLeaderboardProfiles] = useState<PublicLeaderboardRow[]>([]);
   const [selectedPlayCategories, setSelectedPlayCategories] = useState<MediaCategory[]>(mediaCategories);
   const playableCampaigns = campaigns.filter((campaign) => campaign.playsDone < campaign.playsTarget && selectedPlayCategories.includes(campaign.category));
   const activeCampaign = playableCampaigns.length > 0 ? playableCampaigns[activeCampaignIndex % playableCampaigns.length] : undefined;
@@ -466,6 +476,18 @@ export default function App() {
 
     if (error) throw error;
     setCampaigns((data || []).map(campaignFromRow));
+  }
+
+  async function loadLeaderboardProfiles() {
+    const { data, error } = await supabase
+      .rpc("get_public_leaderboard")
+      .returns<PublicLeaderboardRow[]>();
+
+    if (error) {
+      setAuthError(error.message);
+      return;
+    }
+    setLeaderboardProfiles(Array.isArray(data) ? data : []);
   }
 
   async function createCampaign(draft: CampaignDraft) {
@@ -615,6 +637,7 @@ export default function App() {
       try {
         await loadOrCreateProfile(user);
         await loadCampaigns();
+        await loadLeaderboardProfiles();
         if (active) setIsLoggedIn(true);
       } catch (profileError) {
         const message = profileError instanceof Error ? profileError.message : "Could not load your profile.";
@@ -726,6 +749,7 @@ export default function App() {
     try {
       await loadOrCreateProfile(user, cleanName);
       await loadCampaigns();
+      await loadLeaderboardProfiles();
       setIsLoggedIn(true);
       return "";
     } catch (profileError) {
@@ -1013,7 +1037,7 @@ export default function App() {
                 />
               </View>
               <View style={[styles.screenPane, tab === "leaderboard" ? styles.activePane : styles.hiddenPane]} pointerEvents={tab === "leaderboard" ? "auto" : "none"}>
-                <LeaderboardScreen campaigns={campaigns} profileName={profileName.trim() || "Swap Plays User"} profilePhoto={profilePhoto} profileLink={profileLink} overallPoints={overallPoints} />
+                <LeaderboardScreen campaigns={campaigns} leaderboardProfiles={leaderboardProfiles} userId={userId} profileName={profileName.trim() || "Swap Plays User"} profileEmail={profileEmail} profilePhoto={profilePhoto} profileLink={profileLink} overallPoints={overallPoints} />
               </View>
               {tab === "redeem" && <RedeemScreen points={points} badge={badge} onRedeem={(amount) => setPoints((value) => value + amount)} />}
               {tab === "invite" && <InviteScreen />}
@@ -2453,7 +2477,7 @@ const leaderboardUsers = Array.from({ length: 100 }, (_, index) => {
   };
 });
 
-function LeaderboardScreen({ campaigns, profileName, profilePhoto, profileLink, overallPoints }: { campaigns: Campaign[]; profileName: string; profilePhoto: string; profileLink: string; overallPoints: number }) {
+function LeaderboardScreen({ campaigns, leaderboardProfiles, userId, profileName, profileEmail, profilePhoto, profileLink, overallPoints }: { campaigns: Campaign[]; leaderboardProfiles: PublicLeaderboardRow[]; userId: string; profileName: string; profileEmail: string; profilePhoto: string; profileLink: string; overallPoints: number }) {
   const [mode, setMode] = useState<"plays" | "points">("plays");
   type LeaderboardRow = {
     id: string;
@@ -2464,6 +2488,15 @@ function LeaderboardScreen({ campaigns, profileName, profilePhoto, profileLink, 
     photo: string | number;
     externalLink: string;
   };
+  const normalizedProfileEmail = profileEmail.trim().toLowerCase();
+  const fundedAccountRow: LeaderboardRow = {
+    id: "funded-drekray",
+    name: "drekray",
+    plays: 0,
+    points: regularMediaFundedPoints,
+    photo: sampleAvatarImage(0),
+    externalLink: ""
+  };
   const campaignRows: LeaderboardRow[] = [
     ...campaigns.map((campaign, index) => ({
       id: campaign.id,
@@ -2471,25 +2504,35 @@ function LeaderboardScreen({ campaigns, profileName, profilePhoto, profileLink, 
       plays: campaign.playsDone,
       points: 0,
       category: campaign.category,
-      photo: profilePhoto || campaign.thumbnailUrl || sampleAvatarImage(index),
+      photo: campaign.thumbnailUrl || sampleAvatarImage(index),
       externalLink: campaign.externalLink || ""
-    })),
-    ...Array.from({ length: Math.max(0, 100 - campaigns.length) }, (_, index) => {
-      const name = index === 0 ? "Creator Media Promo" : `Campaign ${index + 2}`;
-      return {
-        id: `campaign-leader-${index + 1}`,
-        name,
-        plays: Math.max(1000, 98500 - index * 731),
-        points: 0,
-        category: mediaCategories[index % mediaCategories.length],
-        photo: sampleAvatarImage(index + campaigns.length),
-        externalLink: ""
-      };
-    })
+    }))
   ].sort((a, b) => b.plays - a.plays).slice(0, 100);
-  const pointRows: LeaderboardRow[] = leaderboardUsers.map((user, index) => (
-    index === 0 ? { ...user, name: profileName, points: overallPoints, photo: profilePhoto || user.photo, externalLink: profileLink.trim() } : user
-  )).sort((a, b) => b.points - a.points);
+  const currentUserRow: LeaderboardRow = normalizedProfileEmail === regularMediaFundedEmail
+    ? { ...fundedAccountRow, points: Math.max(overallPoints, regularMediaFundedPoints), photo: profilePhoto || fundedAccountRow.photo, externalLink: profileLink.trim() }
+    : { ...leaderboardUsers[0], id: "current-user", name: profileName, points: overallPoints, photo: profilePhoto || leaderboardUsers[0].photo, externalLink: profileLink.trim() };
+  const realProfileRows: LeaderboardRow[] = leaderboardProfiles.map((profile, index) => ({
+    id: `profile-${profile.id}`,
+    name: profile.name?.trim() || "Swap Plays User",
+    plays: 0,
+    points: profile.overall_points ?? 0,
+    photo: profile.profile_photo_url || sampleAvatarImage(index),
+    externalLink: profile.profile_link || ""
+  }));
+  const hasFundedProfile = leaderboardProfiles.some((profile) => profile.is_funded_account);
+  const otherRealProfileRows = realProfileRows.filter((row) => row.id !== `profile-${userId}`);
+  const pointRows: LeaderboardRow[] = (leaderboardProfiles.length > 0
+    ? [
+        currentUserRow,
+        ...(hasFundedProfile || normalizedProfileEmail === regularMediaFundedEmail ? [] : [fundedAccountRow]),
+        ...otherRealProfileRows
+      ]
+    : [
+        currentUserRow,
+        ...(normalizedProfileEmail === regularMediaFundedEmail ? [] : [fundedAccountRow]),
+        ...leaderboardUsers.slice(1)
+      ]
+  ).sort((a, b) => b.points - a.points).slice(0, 100);
   const rows: LeaderboardRow[] = mode === "plays" ? campaignRows : pointRows;
   function openLeaderboardLink(link?: string) {
     if (!link) {
