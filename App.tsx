@@ -1013,7 +1013,7 @@ export default function App() {
                 />
               </View>
               <View style={[styles.screenPane, tab === "leaderboard" ? styles.activePane : styles.hiddenPane]} pointerEvents={tab === "leaderboard" ? "auto" : "none"}>
-                <LeaderboardScreen campaigns={campaigns} profileName={profileName.trim() || "Swap Plays User"} profilePhoto={profilePhoto} profileLink={profileLink} />
+                <LeaderboardScreen campaigns={campaigns} profileName={profileName.trim() || "Swap Plays User"} profilePhoto={profilePhoto} profileLink={profileLink} overallPoints={overallPoints} />
               </View>
               {tab === "redeem" && <RedeemScreen points={points} badge={badge} onRedeem={(amount) => setPoints((value) => value + amount)} />}
               {tab === "invite" && <InviteScreen />}
@@ -2431,7 +2431,7 @@ const leaderboardUsers = Array.from({ length: 100 }, (_, index) => {
   };
 });
 
-function LeaderboardScreen({ campaigns, profileName, profilePhoto, profileLink }: { campaigns: Campaign[]; profileName: string; profilePhoto: string; profileLink: string }) {
+function LeaderboardScreen({ campaigns, profileName, profilePhoto, profileLink, overallPoints }: { campaigns: Campaign[]; profileName: string; profilePhoto: string; profileLink: string; overallPoints: number }) {
   const [mode, setMode] = useState<"plays" | "points">("plays");
   type LeaderboardRow = {
     id: string;
@@ -2466,7 +2466,7 @@ function LeaderboardScreen({ campaigns, profileName, profilePhoto, profileLink }
     })
   ].sort((a, b) => b.plays - a.plays).slice(0, 100);
   const pointRows: LeaderboardRow[] = leaderboardUsers.map((user, index) => (
-    index === 0 ? { ...user, name: profileName, photo: profilePhoto || user.photo, externalLink: profileLink.trim() } : user
+    index === 0 ? { ...user, name: profileName, points: overallPoints, photo: profilePhoto || user.photo, externalLink: profileLink.trim() } : user
   )).sort((a, b) => b.points - a.points);
   const rows: LeaderboardRow[] = mode === "plays" ? campaignRows : pointRows;
   function openLeaderboardLink(link?: string) {
