@@ -36,22 +36,22 @@ export default async function handler(req: any, res: any) {
             }
           }
         ],
-        payment_source: {
-          paypal: {
-            experience_context: {
-              brand_name: "Swap Plays",
-              landing_page: "LOGIN",
-              user_action: "PAY_NOW",
-              return_url: `${siteOrigin}/?paypal=success`,
-              cancel_url: `${siteOrigin}/?paypal=cancel`
-            }
-          }
+        application_context: {
+          brand_name: "Swap Plays",
+          landing_page: "LOGIN",
+          user_action: "PAY_NOW",
+          shipping_preference: "NO_SHIPPING",
+          return_url: `${siteOrigin}/?paypal=success`,
+          cancel_url: `${siteOrigin}/?paypal=cancel`
         }
       })
     });
     const payload = await response.json();
     if (!response.ok) {
-      res.status(response.status).json({ error: payload.message || "Could not create PayPal order." });
+      const details = Array.isArray(payload.details)
+        ? payload.details.map((detail: { description?: string; issue?: string }) => detail.description || detail.issue).filter(Boolean).join(" ")
+        : "";
+      res.status(response.status).json({ error: details || payload.message || "Could not create PayPal order." });
       return;
     }
 
