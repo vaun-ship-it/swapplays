@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Swap Plays",
+    "slug": "swapplays",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "swapplays",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.swapplays.app"
+    },
+    "android": {
+      "package": "com.swapplays.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#111111"
+      }
+    },
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "swapplays-local"
+      }
+    }
+  }
+}

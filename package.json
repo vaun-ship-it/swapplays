@@ -1,0 +1,66 @@
+{
+  "name": "swapplays",
+  "version": "1.0.0",
+  "private": true,
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "web:export": "expo export --platform web",
+    "desktop": "electron electron/main.js",
+    "desktop:pack": "npm run web:export && electron-builder --dir",
+    "desktop:build": "npm run web:export && electron-builder",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "~4.0.0",
+    "@expo/vector-icons": "~14.0.4",
+    "@opentelemetry/api": "^1.9.1",
+    "@supabase/supabase-js": "^2.108.2",
+    "expo": "~52.0.23",
+    "expo-asset": "~11.0.5",
+    "expo-font": "~13.0.2",
+    "expo-status-bar": "~2.0.0",
+    "react": "18.3.1",
+    "react-dom": "^18.3.1",
+    "react-native": "0.76.9",
+    "react-native-safe-area-context": "4.12.0",
+    "react-native-web": "^0.19.13"
+  },
+  "devDependencies": {
+    "@types/react": "~18.3.12",
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.3.3"
+  },
+  "build": {
+    "appId": "com.swapplays.desktop",
+    "productName": "Swap Plays",
+    "directories": {
+      "output": "desktop-dist"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "icon": "build/icon.icns"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "AudioVideo",
+      "icon": "build/icon.png"
+    }
+  }
+}
