@@ -408,11 +408,13 @@ export default function App() {
     const profileEmailValue = profile?.email || fallbackEmail || "";
     const normalizedEmail = profileEmailValue.trim().toLowerCase();
     const profilePoints = profile?.points ?? 0;
+    const profileOverallPoints = profile?.overall_points ?? 0;
+    const isRegularMediaFundedAccount = normalizedEmail === regularMediaFundedEmail;
 
     setProfileEmail(profileEmailValue);
     setProfileName(profile?.name || fallbackName || profileEmailValue.split("@")[0] || "Swap Plays User");
-    setPoints(normalizedEmail === regularMediaFundedEmail ? Math.max(profilePoints, regularMediaFundedPoints) : profilePoints);
-    setOverallPoints(profile?.overall_points ?? 0);
+    setPoints(isRegularMediaFundedAccount ? Math.max(profilePoints, regularMediaFundedPoints) : profilePoints);
+    setOverallPoints(isRegularMediaFundedAccount ? Math.max(profileOverallPoints, regularMediaFundedPoints) : profileOverallPoints);
     setProfilePhoto(profile?.profile_photo_url || "");
     setProfileLink(profile?.profile_link || "");
     setAutoplayPlan(profile?.autoplay_plan || null);
