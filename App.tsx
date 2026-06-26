@@ -1180,22 +1180,13 @@ function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCrede
     if (googleError) setError(googleError.message);
   }
 
-  return (
-    <View style={styles.loginScreen}>
-      <ScrollView
-        contentContainerStyle={[styles.loginScroll, isMobileWebLogin && styles.loginScrollMobile, { paddingBottom: loginBottomPadding }]}
-        keyboardShouldPersistTaps="handled"
-        scrollEnabled={!isMobileWebLogin}
-        showsHorizontalScrollIndicator={false}
-        showsVerticalScrollIndicator={false}
-        style={styles.loginScroller}
-      >
-        <ImageBackground
-          source={require("./assets/login-screen-art.png")}
-          resizeMode="cover"
-          style={[styles.loginArtwork, isMobileWebLogin && styles.loginArtworkMobile, { width: loginArtWidth, height: loginArtHeight }]}
-          imageStyle={styles.loginArtworkImage}
-        >
+  const loginArtwork = (
+    <ImageBackground
+      source={require("./assets/login-screen-art.png")}
+      resizeMode="cover"
+      style={[styles.loginArtwork, isMobileWebLogin && styles.loginArtworkMobile, { width: loginArtWidth, height: loginArtHeight }]}
+      imageStyle={styles.loginArtworkImage}
+    >
           <View style={styles.loginRealCard}>
             <View style={styles.loginRealModeRow}>
               <Pressable
@@ -1273,7 +1264,27 @@ function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCrede
               </Pressable>
             </View>
           </View>
-        </ImageBackground>
+    </ImageBackground>
+  );
+
+  if (isMobileWebLogin) {
+    return (
+      <View style={[styles.loginScreen, styles.loginMobileStatic]}>
+        {loginArtwork}
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.loginScreen}>
+      <ScrollView
+        contentContainerStyle={[styles.loginScroll, { paddingBottom: loginBottomPadding }]}
+        keyboardShouldPersistTaps="handled"
+        showsHorizontalScrollIndicator={false}
+        showsVerticalScrollIndicator={false}
+        style={styles.loginScroller}
+      >
+        {loginArtwork}
       </ScrollView>
     </View>
   );
@@ -2896,6 +2907,7 @@ const styles = StyleSheet.create({
   loadingScreen: { flex: 1, backgroundColor: "#050506", alignItems: "center", justifyContent: "center" },
   loadingText: { color: "#fff", fontSize: 22, fontWeight: "900" },
   loginScreen: { flex: 1, backgroundColor: "#050506", overflow: "hidden" },
+  loginMobileStatic: { width: "100%", height: "100%", alignItems: "center", justifyContent: "center" },
   loginScroller: { width: "100%" },
   loginScroll: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 10, paddingVertical: 8 },
   loginScrollMobile: { justifyContent: "center", paddingTop: 0 },
