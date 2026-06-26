@@ -1135,9 +1135,9 @@ function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCrede
   const isCreate = mode === "create";
   const loginArtRatio = 1083 / 1452;
   const isMobileWebLogin = Platform.OS === "web" && width < 700;
-  const loginBottomPadding = isMobileWebLogin ? 240 : 24;
+  const loginBottomPadding = isMobileWebLogin ? 0 : 24;
   const loginHorizontalSpace = isMobileWebLogin ? 76 : 20;
-  const loginHeightBudget = isMobileWebLogin ? Math.max(320, height - 250) : height - 52;
+  const loginHeightBudget = isMobileWebLogin ? Math.max(320, height - 170) : height - 52;
   const loginArtWidth = Math.min(Math.max(280, width - loginHorizontalSpace), loginHeightBudget * loginArtRatio, isMobileWebLogin ? 430 : 560);
   const loginArtHeight = loginArtWidth / loginArtRatio;
   const visibleError = error || authError;
@@ -1182,7 +1182,7 @@ function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCrede
 
   return (
     <View style={styles.loginScreen}>
-      <ScrollView contentContainerStyle={[styles.loginScroll, isMobileWebLogin && styles.loginScrollMobile, { paddingBottom: loginBottomPadding }]} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.loginScroll, isMobileWebLogin && styles.loginScrollMobile, { paddingBottom: loginBottomPadding }]} keyboardShouldPersistTaps="handled" scrollEnabled={!isMobileWebLogin}>
         <ImageBackground
           source={require("./assets/login-screen-art.png")}
           resizeMode="cover"
@@ -2892,7 +2892,7 @@ const styles = StyleSheet.create({
   loginScroll: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 10, paddingVertical: 8 },
   loginScrollMobile: { justifyContent: "flex-start", paddingTop: 16 },
   loginArtwork: { alignSelf: "center", overflow: "hidden" },
-  loginArtworkMobile: { overflow: "visible", marginBottom: 220 },
+  loginArtworkMobile: { overflow: "visible", marginBottom: 0 },
   loginArtworkImage: { borderRadius: 0 },
   loginRealCard: { position: "absolute", left: "4.8%", right: "4.8%", top: "54.2%", minHeight: "37.4%", zIndex: 30, borderRadius: 17, backgroundColor: "#fff", padding: 10, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 9 } },
   loginRealModeRow: { flexDirection: "row", gap: 12, marginBottom: 7 },
