@@ -554,6 +554,26 @@ export default function App() {
     }
   }
 
+  async function updateCampaign(id: string, title: string, externalLink: string) {
+    if (!userId) return "Log in again before editing this campaign.";
+
+    const { data, error } = await supabase
+      .from(tables.campaigns)
+      .update({
+        title: title.trim(),
+        external_link: externalLink.trim() || null
+      })
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select("id,user_id,owner_email,title,category,media_url,media_kind,thumbnail_url,external_link,plays_target,seconds_target,points_cost,plays_done,created_at")
+      .single<CampaignRow>();
+
+    if (error) return error.message;
+    const updatedCampaign = campaignFromRow(data);
+    setCampaigns((items) => items.map((item) => item.id === id ? updatedCampaign : item));
+    return "";
+  }
+
   function persistCampaignPlay(campaign: Campaign, nextPlaysDone: number, pointsEarned: number) {
     supabase
       .from(tables.campaigns)
@@ -1041,7 +1061,7 @@ export default function App() {
           <>
             <View style={styles.screenStack} {...swipeResponder.panHandlers}>
               <View style={[styles.screenPane, tab === "campaigns" ? styles.activePane : styles.hiddenPane]} pointerEvents={tab === "campaigns" ? "auto" : "none"}>
-                <CampaignScreen campaigns={campaigns} onCreate={() => setCreateOpen(true)} onDelete={deleteCampaign} />
+                <CampaignScreen campaigns={campaigns} onCreate={() => setCreateOpen(true)} onDelete={deleteCampaign} onUpdate={updateCampaign} />
               </View>
               <View style={[styles.screenPane, tab === "play" ? styles.activePane : styles.hiddenPane]} pointerEvents={tab === "play" ? "auto" : "none"}>
                 <PlayScreen
@@ -1432,7 +1452,18 @@ function PlaqueAchievementModal({ award, onClose }: { award: PlaqueAward; onClos
   );
 }
 
-function CampaignScreen({ campaigns, onCreate, onDelete }: { campaigns: Campaign[]; onCreate: () => void; onDelete: (id: string) => void }) {
+function CampaignScreen({
+  campaigns,
+  onCreate,
+  onDelete,
+  onUpdate
+}: {
+  campaigns: Campaign[];
+  onCreate: () => void;
+  onDelete: (id: string) => void;
+  onUpdate: (id: string, title: string, externalLink: string) => Promise<string>;
+}) {
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const totalRemaining = campaigns.reduce((sum, campaign) => sum + Math.max(0, campaign.playsTarget - campaign.playsDone), 0);
   const activeCount = campaigns.filter((campaign) => campaign.playsDone < campaign.playsTarget).length;
   const activeLabel = activeCount === 1 ? "1 live upload" : `${activeCount} live uploads`;
@@ -1461,17 +1492,30 @@ function CampaignScreen({ campaigns, onCreate, onDelete }: { campaigns: Campaign
               </View>
             </View>
           }
-          renderItem={({ item }) => <CampaignRow campaign={item} onDelete={() => onDelete(item.id)} />}
+          renderItem={({ item }) => (
+            <CampaignRow
+              campaign={item}
+              onDelete={() => onDelete(item.id)}
+              onEdit={() => setEditingCampaign(item)}
+            />
+          )}
         />
       )}
       <Pressable style={styles.fab} onPress={onCreate}>
         <Ionicons name="add" size={34} color="#fff" />
       </Pressable>
+      {editingCampaign ? (
+        <EditCampaignModal
+          campaign={editingCampaign}
+          onClose={() => setEditingCampaign(null)}
+          onSave={onUpdate}
+        />
+      ) : null}
     </View>
   );
 }
 
-function CampaignRow({ campaign, onDelete }: { campaign: Campaign; onDelete: () => void }) {
+function CampaignRow({ campaign, onDelete, onEdit }: { campaign: Campaign; onDelete: () => void; onEdit: () => void }) {
   const meta = platformMeta[campaign.platform];
   const progress = campaign.playsDone / campaign.playsTarget;
   const isComplete = campaign.playsDone >= campaign.playsTarget;
@@ -1497,10 +1541,101 @@ function CampaignRow({ campaign, onDelete }: { campaign: Campaign; onDelete: () 
         </View>
         <Text style={[styles.rowSub, isComplete && styles.rowCompleteText]}>{campaign.playsDone}/{campaign.playsTarget} {isComplete ? "complete" : "plays"}</Text>
       </View>
-      <Pressable style={styles.deleteButton} onPress={onDelete}>
-        <Ionicons name="trash-outline" size={20} color="#ff3b30" />
-      </Pressable>
+      <View style={styles.campaignActions}>
+        <Pressable accessibilityLabel={`Edit ${campaign.title}`} testID={`edit-campaign-${campaign.id}`} style={styles.editButton} onPress={onEdit}>
+          <Ionicons name="pencil-outline" size={20} color="#1d8af0" />
+        </Pressable>
+        <Pressable accessibilityLabel={`Delete ${campaign.title}`} style={styles.deleteButton} onPress={onDelete}>
+          <Ionicons name="trash-outline" size={20} color="#ff3b30" />
+        </Pressable>
+      </View>
     </View>
+  );
+}
+
+function EditCampaignModal({
+  campaign,
+  onClose,
+  onSave
+}: {
+  campaign: Campaign;
+  onClose: () => void;
+  onSave: (id: string, title: string, externalLink: string) => Promise<string>;
+}) {
+  const [title, setTitle] = useState(campaign.title);
+  const [externalLink, setExternalLink] = useState(campaign.externalLink || "");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    const cleanTitle = title.trim();
+    const cleanLink = externalLink.trim();
+    if (!cleanTitle) {
+      setError("Enter a song name.");
+      return;
+    }
+    if (cleanLink && !isLikelyUrl(cleanLink)) {
+      setError("Enter a valid link that starts with http:// or https://.");
+      return;
+    }
+
+    setError("");
+    setSaving(true);
+    const saveError = await onSave(campaign.id, cleanTitle, cleanLink);
+    setSaving(false);
+    if (saveError) {
+      setError(saveError);
+      return;
+    }
+    onClose();
+  }
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.editCampaignCard}>
+          <View style={styles.editCampaignHeader}>
+            <View>
+              <Text style={styles.editCampaignEyebrow}>Campaign details</Text>
+              <Text style={styles.editCampaignTitle}>Edit Song</Text>
+            </View>
+            <Pressable accessibilityLabel="Close edit song" style={styles.privacyClose} onPress={onClose}>
+              <Ionicons name="close" size={21} color="#111318" />
+            </Pressable>
+          </View>
+          <Text style={styles.editCampaignLabel}>Song name</Text>
+          <TextInput
+            testID="edit-campaign-title"
+            style={styles.editCampaignInput}
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Song name"
+            placeholderTextColor="#939aa6"
+          />
+          <Text style={styles.editCampaignLabel}>External link</Text>
+          <TextInput
+            testID="edit-campaign-link"
+            style={styles.editCampaignInput}
+            value={externalLink}
+            onChangeText={setExternalLink}
+            placeholder="https://your-song-link.com"
+            placeholderTextColor="#939aa6"
+            autoCapitalize="none"
+            keyboardType="url"
+          />
+          <Text style={styles.editCampaignHint}>Leave the link empty to remove it.</Text>
+          {error ? <Text style={styles.editCampaignError}>{error}</Text> : null}
+          <View style={styles.editCampaignButtons}>
+            <Pressable style={styles.editCampaignCancel} onPress={onClose} disabled={saving}>
+              <Text style={styles.editCampaignCancelText}>Cancel</Text>
+            </Pressable>
+            <Pressable testID="edit-campaign-save" style={[styles.editCampaignSave, saving && styles.editCampaignSaveDisabled]} onPress={submit} disabled={saving}>
+              <Text style={styles.editCampaignSaveText}>{saving ? "Saving..." : "Save Changes"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -3160,7 +3295,23 @@ const styles = StyleSheet.create({
   progressTrack: { height: 7, backgroundColor: "#e2e7ef", marginTop: 7, borderRadius: 8, overflow: "hidden" },
   progressFill: { height: 7, backgroundColor: "#1d8af0", borderRadius: 8 },
   progressFillComplete: { backgroundColor: "#39cc70" },
+  campaignActions: { flexDirection: "row", alignItems: "center", gap: 7 },
+  editButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#e9f4ff", alignItems: "center", justifyContent: "center" },
   deleteButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#fff1f1", alignItems: "center", justifyContent: "center" },
+  editCampaignCard: { width: "100%", maxWidth: 440, borderRadius: 12, backgroundColor: "#fff", padding: 18, shadowColor: "#000", shadowOpacity: 0.28, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
+  editCampaignHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
+  editCampaignEyebrow: { color: "#1d8af0", fontSize: 11, fontWeight: "900", textTransform: "uppercase" },
+  editCampaignTitle: { color: "#111318", fontSize: 24, fontWeight: "900", marginTop: 2 },
+  editCampaignLabel: { color: "#414854", fontSize: 13, fontWeight: "900", marginBottom: 6 },
+  editCampaignInput: { height: 48, borderWidth: 1, borderColor: "#d6dde8", borderRadius: 8, backgroundColor: "#fff", color: "#111318", fontSize: 15, fontWeight: "700", paddingHorizontal: 12, marginBottom: 12 },
+  editCampaignHint: { color: "#7a818e", fontSize: 12, fontWeight: "700", marginTop: -5 },
+  editCampaignError: { color: "#d93025", fontSize: 13, fontWeight: "800", lineHeight: 18, marginTop: 9 },
+  editCampaignButtons: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 16 },
+  editCampaignCancel: { flex: 1, minHeight: 46, borderRadius: 8, borderWidth: 1, borderColor: "#d6dde8", backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
+  editCampaignCancelText: { color: "#5c6470", fontSize: 14, fontWeight: "900" },
+  editCampaignSave: { flex: 1.4, minHeight: 46, borderRadius: 8, backgroundColor: "#1d8af0", alignItems: "center", justifyContent: "center", shadowColor: "#1d8af0", shadowOpacity: 0.24, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
+  editCampaignSaveDisabled: { opacity: 0.62 },
+  editCampaignSaveText: { color: "#fff", fontSize: 14, fontWeight: "900" },
   create: { flex: 1, backgroundColor: "transparent" },
   createInner: { width: "96%", maxWidth: 900, alignSelf: "center", paddingTop: 14, paddingBottom: 18 },
   audioOnlyHeader: { minHeight: 58, borderRadius: 8, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, marginBottom: 10, shadowColor: "#172033", shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
