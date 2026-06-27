@@ -430,8 +430,8 @@ export default function App() {
 
     setProfileEmail(profileEmailValue);
     setProfileName(profile?.name || fallbackName || profileEmailValue.split("@")[0] || "Swap Plays User");
-    setPoints(isRegularMediaFundedAccount ? regularMediaFundedPoints : profilePoints);
-    setOverallPoints(isRegularMediaFundedAccount ? regularMediaFundedPoints : profileOverallPoints);
+    setPoints(isRegularMediaFundedAccount ? Math.max(regularMediaFundedPoints, profilePoints) : profilePoints);
+    setOverallPoints(isRegularMediaFundedAccount ? Math.max(regularMediaFundedPoints, profileOverallPoints) : profileOverallPoints);
     setProfilePhoto(profile?.profile_photo_url || "");
     setProfileLink(profile?.profile_link || "");
     setAutoplayPlan(profile?.autoplay_plan || null);
@@ -1035,7 +1035,6 @@ export default function App() {
       <StatusBar style="light" />
       <View style={[styles.app, tab === "awards" && styles.appDark]}>
         <Image
-          pointerEvents="none"
           resizeMode="cover"
           source={require("./assets/site-background-art.png")}
           style={[styles.siteBackgroundArt, tab === "awards" && styles.siteBackgroundArtDark]}
@@ -2037,7 +2036,6 @@ function PlayScreen({
           {source.kind === "audio" ? (
             <>
               <Image
-                pointerEvents="none"
                 resizeMode="contain"
                 source={audioBackgroundGifs[audioBackgroundIndex]}
                 style={styles.audioGifBackground}
@@ -2683,7 +2681,7 @@ function LeaderboardScreen({ campaigns, leaderboardProfiles, userId, profileName
     }))
   ].sort((a, b) => b.plays - a.plays).slice(0, 100);
   const currentUserRow: LeaderboardRow = normalizedProfileEmail === regularMediaFundedEmail
-    ? { ...fundedAccountRow, points: regularMediaFundedPoints, photo: profilePhoto || fundedAccountRow.photo, externalLink: profileLink.trim() }
+    ? { ...fundedAccountRow, points: overallPoints, photo: profilePhoto || fundedAccountRow.photo, externalLink: profileLink.trim() }
     : { ...leaderboardUsers[0], id: "current-user", name: profileName, points: overallPoints, photo: profilePhoto || leaderboardUsers[0].photo, externalLink: profileLink.trim() };
   const realProfileRows: LeaderboardRow[] = leaderboardProfiles.map((profile, index) => ({
     id: `profile-${profile.id}`,
