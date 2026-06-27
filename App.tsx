@@ -1013,7 +1013,13 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
-      <View style={styles.app}>
+      <View style={[styles.app, tab === "awards" && styles.appDark]}>
+        <Image
+          pointerEvents="none"
+          resizeMode="cover"
+          source={require("./assets/site-background-art.png")}
+          style={[styles.siteBackgroundArt, tab === "awards" && styles.siteBackgroundArtDark]}
+        />
         <Header
           title={headerTitle}
           points={points}
@@ -2986,6 +2992,9 @@ function Plan({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#000" },
   app: { flex: 1, backgroundColor: "#f6f8fb" },
+  appDark: { backgroundColor: "#080a0f" },
+  siteBackgroundArt: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%", opacity: 0.08 },
+  siteBackgroundArtDark: { opacity: 0.14 },
   loadingScreen: { flex: 1, backgroundColor: "#050506", alignItems: "center", justifyContent: "center" },
   loadingText: { color: "#fff", fontSize: 22, fontWeight: "900" },
   loginScreen: { flex: 1, backgroundColor: "#050506", overflow: "hidden" },
@@ -3124,8 +3133,8 @@ const styles = StyleSheet.create({
   screenPane: { flex: 1 },
   activePane: { display: "flex" },
   hiddenPane: { display: "none" },
-  content: { flex: 1, backgroundColor: "#f6f8fb" },
-  playFixedScreen: { flex: 1, backgroundColor: "#f6f8fb", paddingBottom: 8, overflow: "hidden" },
+  content: { flex: 1, backgroundColor: "transparent" },
+  playFixedScreen: { flex: 1, backgroundColor: "transparent", paddingBottom: 8, overflow: "hidden" },
   listContent: { width: "96%", maxWidth: 900, alignSelf: "center", paddingTop: 14, paddingBottom: 96 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 28 },
   emptyLogo: { width: 148, height: 98, resizeMode: "contain", opacity: 0.78 },
@@ -3152,7 +3161,7 @@ const styles = StyleSheet.create({
   progressFill: { height: 7, backgroundColor: "#1d8af0", borderRadius: 8 },
   progressFillComplete: { backgroundColor: "#39cc70" },
   deleteButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#fff1f1", alignItems: "center", justifyContent: "center" },
-  create: { flex: 1, backgroundColor: "#f6f8fb" },
+  create: { flex: 1, backgroundColor: "transparent" },
   createInner: { width: "96%", maxWidth: 900, alignSelf: "center", paddingTop: 14, paddingBottom: 18 },
   audioOnlyHeader: { minHeight: 58, borderRadius: 8, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, marginBottom: 10, shadowColor: "#172033", shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
   audioOnlyTitle: { color: "#050505", fontSize: 18, fontWeight: "900" },
@@ -3276,8 +3285,8 @@ const styles = StyleSheet.create({
   metricDivider: { height: 42, width: 1.5, backgroundColor: "#222" },
   skipButton: { width: "96%", maxWidth: 900, alignSelf: "center", marginTop: 6, marginBottom: 0, height: 44, backgroundColor: "#111318", borderRadius: 8, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.16, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
   skipText: { color: "#fff", fontSize: 18, fontWeight: "900" },
-  formScreen: { flex: 1, width: "96%", maxWidth: 900, alignSelf: "center", backgroundColor: "#f6f8fb", padding: 24, alignItems: "center" },
-  redeemScreen: { flex: 1, backgroundColor: "#f6f8fb" },
+  formScreen: { flex: 1, width: "96%", maxWidth: 900, alignSelf: "center", backgroundColor: "transparent", padding: 24, alignItems: "center" },
+  redeemScreen: { flex: 1, backgroundColor: "transparent" },
   redeemInner: { width: "96%", maxWidth: 900, alignSelf: "center", paddingTop: 10, paddingBottom: 68 },
   redeemHero: { borderRadius: 8, backgroundColor: "#0b0d12", padding: 10, alignItems: "center", shadowColor: "#172033", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
   redeemTitle: { color: "#fff", fontSize: 19, fontWeight: "900", marginTop: 3 },
@@ -3325,7 +3334,7 @@ const styles = StyleSheet.create({
   tipText: { color: "#777", fontSize: 15, lineHeight: 23, marginTop: 18, textAlign: "center" },
   inviteHeadline: { marginTop: 58, fontSize: 23, fontWeight: "900", lineHeight: 32, textAlign: "center", color: "#111318" },
   refLink: { color: "#1d8af0", fontSize: 18, fontWeight: "900", marginVertical: 22 },
-  awardsScreen: { flex: 1, backgroundColor: "#080a0f" },
+  awardsScreen: { flex: 1, backgroundColor: "transparent" },
   awardsInner: { width: "96%", maxWidth: 900, alignSelf: "center", paddingTop: 14, paddingBottom: 24 },
   awardsHero: { borderRadius: 8, backgroundColor: "#10141d", borderWidth: 1, borderColor: "#222b39", padding: 14, marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
   awardsEyebrow: { color: "#79bfff", fontSize: 11, fontWeight: "900", textTransform: "uppercase" },
@@ -3345,7 +3354,7 @@ const styles = StyleSheet.create({
   awardStatusEarned: { backgroundColor: "#e8f8ef" },
   awardStatusText: { color: "#aeb7c5", fontSize: 11, fontWeight: "900", textTransform: "uppercase" },
   awardStatusTextEarned: { color: "#148c45" },
-  how: { flex: 1, backgroundColor: "#f6f8fb" },
+  how: { flex: 1, backgroundColor: "transparent" },
   howInner: { width: "96%", maxWidth: 900, alignSelf: "center", paddingTop: 14, paddingBottom: 70 },
   infoBlock: { padding: 12, marginBottom: 10, borderRadius: 8, backgroundColor: "#fff", shadowColor: "#172033", shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
   infoTitle: { fontSize: 17, fontWeight: "900", marginBottom: 5 },
@@ -3353,7 +3362,7 @@ const styles = StyleSheet.create({
   badgeCopyWrap: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 7 },
   badgeCopyItem: { flexDirection: "row", alignItems: "center", gap: 5, marginRight: 1, marginBottom: 2 },
   badgeCopyFooter: { marginTop: 2 },
-  leaderboardScreen: { flex: 1, backgroundColor: "#f6f8fb" },
+  leaderboardScreen: { flex: 1, backgroundColor: "transparent" },
   leaderboardHero: { width: "96%", maxWidth: 900, alignSelf: "center", marginTop: 12, marginBottom: 8, padding: 12, borderRadius: 8, backgroundColor: "#0b0d12", shadowColor: "#172033", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
   leaderboardEyebrow: { color: "#79bfff", fontSize: 11, fontWeight: "900", textTransform: "uppercase" },
   leaderboardTitle: { color: "#fff", fontSize: 24, fontWeight: "900", marginTop: 2 },
