@@ -6,6 +6,9 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "swapplays",
+    "web": {
+      "favicon": "./assets/swap-plays-symbol-transparent.png"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.swapplays.app"
