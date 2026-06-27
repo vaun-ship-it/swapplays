@@ -2661,7 +2661,7 @@ const leaderboardUsers = samplePointLeaders.map((user, index) => ({
   externalLink: ""
 }));
 
-const samplePlayLeaders: Array<{ title: string; plays: number; category: MediaCategory }> = [
+const featuredSamplePlayLeaders: Array<{ title: string; plays: number; category: MediaCategory }> = [
   { title: "Midnight Run", plays: 8240, category: "Music" },
   { title: "No Gravity", plays: 7565, category: "Music" },
   { title: "The Creative Hour", plays: 6890, category: "Podcast" },
@@ -2675,6 +2675,19 @@ const samplePlayLeaders: Array<{ title: string; plays: number; category: MediaCa
   { title: "Overtime Stories", plays: 2195, category: "Sports" },
   { title: "Next Move", plays: 1680, category: "Podcast" }
 ];
+
+const sampleTitlePrefixes = ["Golden", "Electric", "Velvet", "Neon", "Hidden", "Silver", "Wild", "Crystal", "Royal", "Endless"];
+const sampleTitleSuffixes = ["Horizon", "Echo", "Motion", "Season", "Signal", "Rhythm", "Story", "Vision", "Journey"];
+const samplePlayCategories: MediaCategory[] = ["Music", "Podcast", "Sports", "Gaming", "Comedy", "Food", "Other"];
+const additionalSamplePlayLeaders: Array<{ title: string; plays: number; category: MediaCategory }> = Array.from(
+  { length: 86 },
+  (_, index) => ({
+    title: `${sampleTitlePrefixes[index % sampleTitlePrefixes.length]} ${sampleTitleSuffixes[Math.floor(index / sampleTitlePrefixes.length)]}`,
+    plays: 1648 - index * 17,
+    category: samplePlayCategories[index % samplePlayCategories.length]
+  })
+);
+const samplePlayLeaders = [...featuredSamplePlayLeaders, ...additionalSamplePlayLeaders];
 
 function LeaderboardScreen({ campaigns, leaderboardProfiles, userId, profileName, profileEmail, profilePhoto, profileLink, overallPoints }: { campaigns: Campaign[]; leaderboardProfiles: PublicLeaderboardRow[]; userId: string; profileName: string; profileEmail: string; profilePhoto: string; profileLink: string; overallPoints: number }) {
   const [mode, setMode] = useState<"plays" | "points">("plays");
