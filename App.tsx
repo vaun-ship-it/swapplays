@@ -637,20 +637,25 @@ export default function App() {
 
       const user = data.session?.user;
       if (!user) {
+        setIsLoggedIn(false);
         setAuthLoading(false);
         return;
       }
+
+      // A persisted Supabase session is enough to enter the app. Profile and
+      // campaign requests should not send a signed-in user back to the login
+      // screen when one of those requests is temporarily unavailable.
+      setUserId(user.id);
+      setIsLoggedIn(true);
+      setAuthLoading(false);
 
       try {
         await loadOrCreateProfile(user);
         await loadCampaigns();
         await loadLeaderboardProfiles();
-        if (active) setIsLoggedIn(true);
       } catch (profileError) {
         const message = profileError instanceof Error ? profileError.message : "Could not load your profile.";
         if (active) setAuthError(message);
-      } finally {
-        if (active) setAuthLoading(false);
       }
     }
 
@@ -659,7 +664,13 @@ export default function App() {
       if (!session?.user) {
         setIsLoggedIn(false);
         setUserId("");
+        setAuthLoading(false);
+        return;
       }
+
+      setUserId(session.user.id);
+      setIsLoggedIn(true);
+      setAuthLoading(false);
     });
 
     return () => {
