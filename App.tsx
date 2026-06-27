@@ -2637,17 +2637,44 @@ function sampleAvatarImage(seed: number) {
   return leaderAvatarImages[seed % leaderAvatarImages.length];
 }
 
-const leaderboardUsers = Array.from({ length: 100 }, (_, index) => {
-  const name = index === 0 ? "Swap Plays User" : `Creator ${index + 1}`;
-  return {
-    id: `leader-${index + 1}`,
-    name,
-    plays: Math.max(1200, 98500 - index * 731),
-    points: Math.max(25000, 2400000 - index * 18425),
-    photo: sampleAvatarImage(index),
-    externalLink: `https://swapplays.com/creator/${index + 1}`
-  };
-});
+const samplePointLeaders = [
+  { name: "Nova Ray", points: 1842500 },
+  { name: "Jaylen Cross", points: 1538800 },
+  { name: "Mia Stone", points: 1284200 },
+  { name: "Carter Waves", points: 976400 },
+  { name: "Aria Banks", points: 842750 },
+  { name: "Malik Rivers", points: 715300 },
+  { name: "Lena Skye", points: 648900 },
+  { name: "Theo Lane", points: 524600 },
+  { name: "Zion Brooks", points: 417250 },
+  { name: "Nia Rose", points: 338700 },
+  { name: "Kai Monroe", points: 264850 },
+  { name: "Avery Knox", points: 191400 }
+];
+
+const leaderboardUsers = samplePointLeaders.map((user, index) => ({
+  id: `sample-user-${index + 1}`,
+  name: user.name,
+  plays: 0,
+  points: user.points,
+  photo: sampleAvatarImage(index),
+  externalLink: ""
+}));
+
+const samplePlayLeaders: Array<{ title: string; plays: number; category: MediaCategory }> = [
+  { title: "Midnight Run", plays: 8240, category: "Music" },
+  { title: "No Gravity", plays: 7565, category: "Music" },
+  { title: "The Creative Hour", plays: 6890, category: "Podcast" },
+  { title: "Blue Lights", plays: 6125, category: "Music" },
+  { title: "Fourth Quarter", plays: 5480, category: "Sports" },
+  { title: "After Hours", plays: 4935, category: "Music" },
+  { title: "Level Up Live", plays: 4210, category: "Gaming" },
+  { title: "Late Night Laughs", plays: 3760, category: "Comedy" },
+  { title: "Sunday Plates", plays: 3185, category: "Food" },
+  { title: "City Dreams", plays: 2740, category: "Music" },
+  { title: "Overtime Stories", plays: 2195, category: "Sports" },
+  { title: "Next Move", plays: 1680, category: "Podcast" }
+];
 
 function LeaderboardScreen({ campaigns, leaderboardProfiles, userId, profileName, profileEmail, profilePhoto, profileLink, overallPoints }: { campaigns: Campaign[]; leaderboardProfiles: PublicLeaderboardRow[]; userId: string; profileName: string; profileEmail: string; profilePhoto: string; profileLink: string; overallPoints: number }) {
   const [mode, setMode] = useState<"plays" | "points">("plays");
@@ -2678,6 +2705,15 @@ function LeaderboardScreen({ campaigns, leaderboardProfiles, userId, profileName
       category: campaign.category,
       photo: campaign.thumbnailUrl || sampleAvatarImage(index),
       externalLink: campaign.externalLink || ""
+    })),
+    ...samplePlayLeaders.map((song, index) => ({
+      id: `sample-song-${index + 1}`,
+      name: song.title,
+      plays: song.plays,
+      points: 0,
+      category: song.category,
+      photo: sampleAvatarImage(index + 2),
+      externalLink: ""
     }))
   ].sort((a, b) => b.plays - a.plays).slice(0, 100);
   const currentUserRow: LeaderboardRow = normalizedProfileEmail === regularMediaFundedEmail
@@ -2693,18 +2729,12 @@ function LeaderboardScreen({ campaigns, leaderboardProfiles, userId, profileName
   }));
   const hasFundedProfile = leaderboardProfiles.some((profile) => profile.is_funded_account);
   const otherRealProfileRows = realProfileRows.filter((row) => row.id !== `profile-${userId}`);
-  const pointRows: LeaderboardRow[] = (leaderboardProfiles.length > 0
-    ? [
-        currentUserRow,
-        ...(hasFundedProfile || normalizedProfileEmail === regularMediaFundedEmail ? [] : [fundedAccountRow]),
-        ...otherRealProfileRows
-      ]
-    : [
-        currentUserRow,
-        ...(normalizedProfileEmail === regularMediaFundedEmail ? [] : [fundedAccountRow]),
-        ...leaderboardUsers.slice(1)
-      ]
-  ).sort((a, b) => b.points - a.points).slice(0, 100);
+  const pointRows: LeaderboardRow[] = [
+    currentUserRow,
+    ...(hasFundedProfile || normalizedProfileEmail === regularMediaFundedEmail ? [] : [fundedAccountRow]),
+    ...otherRealProfileRows,
+    ...leaderboardUsers
+  ].sort((a, b) => b.points - a.points).slice(0, 100);
   const rows: LeaderboardRow[] = mode === "plays" ? campaignRows : pointRows;
   function openLeaderboardLink(link?: string) {
     if (!link) {
