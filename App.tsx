@@ -115,6 +115,13 @@ const platformMeta: Record<PlatformKind, { label: string; color: string; icon: k
 };
 
 const mediaCategories: MediaCategory[] = ["Music", "Podcast", "Food", "Sports", "Gaming", "Comedy", "Other"];
+const audioBackgroundGifs = [
+  require("./assets/audio-background-1.gif"),
+  require("./assets/audio-background-2.gif"),
+  require("./assets/audio-background-3.gif"),
+  require("./assets/audio-background-4.gif"),
+  require("./assets/audio-background-5.gif")
+];
 const primaryTabs: TabName[] = ["campaigns", "play", "leaderboard"];
 const watchAdsControllerEmail = "cavauntechnologies@gmail.com";
 const regularMediaFundedEmail = "drekray@gmail.com";
@@ -1770,6 +1777,7 @@ function PlayScreen({
   const [isPlaying, setIsPlaying] = useState(false);
   const [secondsRemaining, setSecondsRemaining] = useState(campaign?.secondsTarget ?? 0);
   const [pointsEarned, setPointsEarned] = useState(false);
+  const [audioBackgroundIndex, setAudioBackgroundIndex] = useState(() => Math.floor(Math.random() * audioBackgroundGifs.length));
   const playNextOnLoad = useRef(false);
 
   useEffect(() => {
@@ -1777,6 +1785,9 @@ function PlayScreen({
     playNextOnLoad.current = false;
     setPointsEarned(false);
     setSecondsRemaining(campaign?.secondsTarget ?? 0);
+    setAudioBackgroundIndex((previous) => (
+      previous + 1 + Math.floor(Math.random() * (audioBackgroundGifs.length - 1))
+    ) % audioBackgroundGifs.length);
   }, [campaign?.id, campaign?.secondsTarget, resetKey]);
 
   useEffect(() => {
@@ -1871,6 +1882,17 @@ function PlayScreen({
           </View>
         ) : null}
         <View style={[styles.player, { backgroundColor: meta.color }, isAdMode && styles.adTvScreen]}>
+          {source.kind === "audio" ? (
+            <>
+              <Image
+                pointerEvents="none"
+                resizeMode="contain"
+                source={audioBackgroundGifs[audioBackgroundIndex]}
+                style={styles.audioGifBackground}
+              />
+              <View pointerEvents="none" style={styles.audioGifOverlay} />
+            </>
+          ) : null}
           {isAdMode ? <View pointerEvents="none" style={styles.adScreenGlow} /> : null}
           <View style={styles.playerTop}>
             <View />
@@ -2127,7 +2149,7 @@ function EmbeddedMedia({ source }: { source: { kind: string; url: string } }) {
 
   if (source.kind === "audio") {
     return (
-      <View style={styles.embeddedPlayer}>
+      <View style={[styles.embeddedPlayer, styles.audioEmbeddedPlayer]}>
         {React.createElement("audio", {
           autoPlay: true,
           controls: true,
@@ -3173,6 +3195,8 @@ const styles = StyleSheet.create({
   playCategoryChipText: { color: "#5c6470", fontSize: 12, fontWeight: "900" },
   playCategoryChipTextActive: { color: "#fff" },
   player: { flex: 1, width: "96%", maxWidth: 900, alignSelf: "center", minHeight: 180, marginTop: 6, marginBottom: 6, padding: 10, borderRadius: 8, justifyContent: "space-between", overflow: "hidden", shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 10 } },
+  audioGifBackground: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%", backgroundColor: "#050505" },
+  audioGifOverlay: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(0,0,0,0.5)" },
   adTvSet: { width: "96%", maxWidth: 900, alignSelf: "center", marginTop: 8, marginBottom: 8, alignItems: "center" },
   adAntennaRow: { position: "absolute", top: -6, zIndex: 2, width: 90, height: 30, flexDirection: "row", justifyContent: "center", gap: 24 },
   adAntenna: { width: 4, height: 34, borderRadius: 2, backgroundColor: "#232832", transform: [{ rotate: "-32deg" }] },
@@ -3193,6 +3217,7 @@ const styles = StyleSheet.create({
   playerCategoryBadge: { alignSelf: "flex-start", color: "#fff", backgroundColor: "rgba(29,138,240,0.86)", borderRadius: 8, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 4, fontSize: 12, fontWeight: "900" },
   playCircle: { width: 70, height: 70, borderRadius: 35, backgroundColor: "#fff", alignSelf: "center", alignItems: "center", justifyContent: "center", shadowColor: "#fff", shadowOpacity: 0.35, shadowRadius: 18, shadowOffset: { width: 0, height: 0 } },
   embeddedPlayer: { width: "100%", height: 116, alignSelf: "center", backgroundColor: "#050505", borderRadius: 8, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  audioEmbeddedPlayer: { backgroundColor: "transparent" },
   embeddedFallback: { width: "100%", height: 116, alignSelf: "center", backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", borderRadius: 8, alignItems: "center", justifyContent: "center" },
   embeddedFallbackText: { color: "#fff", fontWeight: "900", marginTop: 8 },
   listenText: { color: "#fff", alignSelf: "center", fontSize: 14, fontWeight: "800" },
