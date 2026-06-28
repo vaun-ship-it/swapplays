@@ -2844,33 +2844,62 @@ const leaderboardUsers = [...samplePointLeaders, ...additionalPointLeaders].map(
   externalLink: ""
 }));
 
-const featuredSamplePlayLeaders: Array<{ title: string; plays: number; category: MediaCategory }> = [
-  { title: "Midnight Run", plays: 8240, category: "Music" },
-  { title: "No Gravity", plays: 7565, category: "Music" },
-  { title: "The Creative Hour", plays: 6890, category: "Podcast" },
-  { title: "Blue Lights", plays: 6125, category: "Music" },
-  { title: "Fourth Quarter", plays: 5480, category: "Sports" },
-  { title: "After Hours", plays: 4935, category: "Music" },
-  { title: "Level Up Live", plays: 4210, category: "Gaming" },
-  { title: "Late Night Laughs", plays: 3760, category: "Comedy" },
-  { title: "Sunday Plates", plays: 3185, category: "Food" },
-  { title: "City Dreams", plays: 2740, category: "Music" },
-  { title: "Overtime Stories", plays: 2195, category: "Sports" },
-  { title: "Next Move", plays: 1680, category: "Podcast" }
+const samplePlayTitleGroups: Array<{ category: MediaCategory; titles: string[] }> = [
+  {
+    category: "Music",
+    titles: [
+      "Main Character", "No Signal", "Midnight Mode", "Too Much Sauce", "Golden Hour",
+      "Neon Dreams", "Better Days", "Vibin'", "Late Checkout", "Heart on Airplane Mode",
+      "Summer Forever", "Cruise Control", "One More Night", "Slow Motion", "Cloud Nine",
+      "Lost & Found", "Daydreams", "Out of Office", "Catching Feelings", "Zero Gravity"
+    ]
+  },
+  {
+    category: "Food",
+    titles: [
+      "Snack Attack", "Sauce Boss", "Holy Guacamole", "Grill Thrills", "Fork Yeah!",
+      "Bite Me", "The Hungry Hour", "Extra Cheese", "Kitchen Chaos", "Sweet & Savory",
+      "What's Cooking?", "Fry-Day", "Taste Buddies", "Flavor Frenzy", "Epic Eats"
+    ]
+  },
+  {
+    category: "Gaming",
+    titles: [
+      "Rage Quit", "GG EZ", "Loot Goblin", "Respawn", "Final Boss", "Noob to Pro",
+      "Pixel Power", "XP Unlocked", "Victory Dance", "One More Match", "Game Over?",
+      "Press Start", "Controller Chaos", "Clutch Mode", "Battle Ready"
+    ]
+  },
+  {
+    category: "Podcast",
+    titles: [
+      "Spill the Tea", "Unfiltered", "Mic Drop", "The Vibe Check", "No Filter", "Real Talk",
+      "Plot Twist", "Off Script", "After Hours", "The Rabbit Hole", "Low-Key Famous",
+      "The Hot Seat", "Daily Dose", "The Group Chat", "Loud Thoughts"
+    ]
+  },
+  {
+    category: "Sports",
+    titles: [
+      "Clutch Time", "Full Send", "The Comeback", "Highlight Reel", "Built Different",
+      "Overtime", "Game Face", "The Huddle", "Fast Break", "Power Play", "Beyond the Score",
+      "Win Streak", "The Playbook", "Underdogs", "Ice Cold"
+    ]
+  },
+  {
+    category: "Other",
+    titles: [
+      "Chaos Mode", "Vibe Central", "Internet Gold", "That's Wild", "Certified Banger",
+      "No Cap", "Trending AF", "The Glow Up", "Big Mood", "Life Hacks Gone Wrong",
+      "Viral Vault", "Unlocked", "Hidden Gems", "Brain Freeze", "Randomly Awesome",
+      "Weekend Energy", "Zero Chill", "All Gas No Brakes", "Peak Entertainment"
+    ]
+  }
 ];
 
-const sampleTitlePrefixes = ["Golden", "Electric", "Velvet", "Neon", "Hidden", "Silver", "Wild", "Crystal", "Royal", "Endless"];
-const sampleTitleSuffixes = ["Horizon", "Echo", "Motion", "Season", "Signal", "Rhythm", "Story", "Vision", "Journey"];
-const samplePlayCategories: MediaCategory[] = ["Music", "Podcast", "Sports", "Gaming", "Comedy", "Food", "Other"];
-const additionalSamplePlayLeaders: Array<{ title: string; plays: number; category: MediaCategory }> = Array.from(
-  { length: 86 },
-  (_, index) => ({
-    title: `${sampleTitlePrefixes[index % sampleTitlePrefixes.length]} ${sampleTitleSuffixes[Math.floor(index / sampleTitlePrefixes.length)]}`,
-    plays: 1648 - index * 17,
-    category: samplePlayCategories[index % samplePlayCategories.length]
-  })
-);
-const samplePlayLeaders = [...featuredSamplePlayLeaders, ...additionalSamplePlayLeaders];
+const samplePlayLeaders = samplePlayTitleGroups
+  .flatMap(({ category, titles }) => titles.map((title) => ({ title, category })))
+  .map((item, index) => ({ ...item, plays: 98500 - index * 731 }));
 
 function LeaderboardScreen({ campaigns, leaderboardProfiles, userId, profileName, profileEmail, profilePhoto, profileLink, overallPoints }: { campaigns: Campaign[]; leaderboardProfiles: PublicLeaderboardRow[]; userId: string; profileName: string; profileEmail: string; profilePhoto: string; profileLink: string; overallPoints: number }) {
   const [mode, setMode] = useState<"plays" | "points">("plays");
