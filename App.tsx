@@ -2897,8 +2897,18 @@ const samplePlayTitleGroups: Array<{ category: MediaCategory; titles: string[] }
   }
 ];
 
-const samplePlayLeaders = samplePlayTitleGroups
-  .flatMap(({ category, titles }) => titles.map((title) => ({ title, category })))
+function shuffleSamplePlayTitles(items: Array<{ title: string; category: MediaCategory }>) {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
+const samplePlayLeaders = shuffleSamplePlayTitles(
+  samplePlayTitleGroups.flatMap(({ category, titles }) => titles.map((title) => ({ title, category })))
+)
   .map((item, index) => ({ ...item, plays: 98500 - index * 731 }));
 
 function LeaderboardScreen({ campaigns, leaderboardProfiles, userId, profileName, profileEmail, profilePhoto, profileLink, overallPoints }: { campaigns: Campaign[]; leaderboardProfiles: PublicLeaderboardRow[]; userId: string; profileName: string; profileEmail: string; profilePhoto: string; profileLink: string; overallPoints: number }) {
