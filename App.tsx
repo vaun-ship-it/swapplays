@@ -84,6 +84,7 @@ type AutoplayPlanId = "week" | "month" | "plus";
 
 type Campaign = {
   id: string;
+  ownerUserId?: string;
   title: string;
   artist: string;
   category: MediaCategory;
@@ -240,6 +241,7 @@ function formatCampaignDate(value: string) {
 function campaignFromRow(row: CampaignRow): Campaign {
   return {
     id: row.id,
+    ownerUserId: row.user_id,
     title: row.title,
     artist: "Media",
     ownerEmail: row.owner_email || undefined,
@@ -412,9 +414,11 @@ export default function App() {
   const [profileLink, setProfileLink] = useState("");
   const [leaderboardProfiles, setLeaderboardProfiles] = useState<PublicLeaderboardRow[]>([]);
   const [selectedPlayCategories, setSelectedPlayCategories] = useState<MediaCategory[]>(mediaCategories);
-  const playableCampaigns = campaigns.filter((campaign) => campaign.playsDone < campaign.playsTarget && selectedPlayCategories.includes(campaign.category));
+  const visibleCampaigns = campaigns.filter((campaign) => !isYouTubeOrSoundCloudUrl(campaign.url) || campaign.ownerUserId === userId);
+  const ownedCampaigns = campaigns.filter((campaign) => campaign.ownerUserId === userId);
+  const playableCampaigns = visibleCampaigns.filter((campaign) => campaign.playsDone < campaign.playsTarget && selectedPlayCategories.includes(campaign.category));
   const activeCampaign = playableCampaigns.length > 0 ? playableCampaigns[activeCampaignIndex % playableCampaigns.length] : undefined;
-  const controllerAdCampaigns = campaigns.filter((campaign) => campaign.playsDone < campaign.playsTarget && campaign.ownerEmail?.trim().toLowerCase() === watchAdsControllerEmail);
+  const controllerAdCampaigns = visibleCampaigns.filter((campaign) => campaign.playsDone < campaign.playsTarget && campaign.ownerEmail?.trim().toLowerCase() === watchAdsControllerEmail);
   const adCampaigns = controllerAdCampaigns.length > 0 ? controllerAdCampaigns : appAdCampaigns;
   const activeAdCampaign = adCampaigns[adCampaignIndex % adCampaigns.length];
   const playCampaign = watchAdsMode ? activeAdCampaign : activeCampaign;
@@ -1077,7 +1081,7 @@ export default function App() {
           <>
             <View style={styles.screenStack} {...swipeResponder.panHandlers}>
               <View style={[styles.screenPane, tab === "campaigns" ? styles.activePane : styles.hiddenPane]} pointerEvents={tab === "campaigns" ? "auto" : "none"}>
-                <CampaignScreen campaigns={campaigns} onCreate={() => setCreateOpen(true)} onDelete={deleteCampaign} onUpdate={updateCampaign} />
+                <CampaignScreen campaigns={ownedCampaigns} onCreate={() => setCreateOpen(true)} onDelete={deleteCampaign} onUpdate={updateCampaign} />
               </View>
               <View style={[styles.screenPane, tab === "play" ? styles.activePane : styles.hiddenPane]} pointerEvents={tab === "play" ? "auto" : "none"}>
                 <PlayScreen
@@ -1098,7 +1102,7 @@ export default function App() {
                 />
               </View>
               <View style={[styles.screenPane, tab === "leaderboard" ? styles.activePane : styles.hiddenPane]} pointerEvents={tab === "leaderboard" ? "auto" : "none"}>
-                <LeaderboardScreen campaigns={campaigns} leaderboardProfiles={leaderboardProfiles} userId={userId} profileName={profileName.trim() || "Swap Plays User"} profileEmail={profileEmail} profilePhoto={profilePhoto} profileLink={profileLink} overallPoints={overallPoints} />
+                <LeaderboardScreen campaigns={visibleCampaigns} leaderboardProfiles={leaderboardProfiles} userId={userId} profileName={profileName.trim() || "Swap Plays User"} profileEmail={profileEmail} profilePhoto={profilePhoto} profileLink={profileLink} overallPoints={overallPoints} />
               </View>
               {tab === "redeem" && <RedeemScreen points={points} badge={badge} onRedeem={(amount) => setPoints((value) => value + amount)} />}
               {tab === "invite" && <InviteScreen />}
@@ -2009,10 +2013,12 @@ function PlayScreen({
   const [pointsEarned, setPointsEarned] = useState(false);
   const [audioBackgroundIndex, setAudioBackgroundIndex] = useState(() => Math.floor(Math.random() * audioBackgroundGifs.length));
   const playNextOnLoad = useRef(false);
+  const timedPlayCompleted = useRef(false);
 
   useEffect(() => {
     setIsPlaying(playNextOnLoad.current);
     playNextOnLoad.current = false;
+    timedPlayCompleted.current = false;
     setPointsEarned(false);
     setSecondsRemaining(campaign?.secondsTarget ?? 0);
     setAudioBackgroundIndex((previous) => (
@@ -2029,10 +2035,12 @@ function PlayScreen({
   }, [isPlaying, pointsEarned, secondsRemaining]);
 
   useEffect(() => {
-    if (!campaign || !isPlaying || pointsEarned || secondsRemaining !== 0) return;
+    if (!campaign || !isPlaying || pointsEarned || secondsRemaining > 0 || timedPlayCompleted.current) return;
+    timedPlayCompleted.current = true;
     setPointsEarned(true);
     onAward();
     if (autoplay) {
+      // The campaign timer—not the media duration—controls Autoplay advancement.
       setIsPlaying(false);
       playNextOnLoad.current = true;
       onComplete(true);
