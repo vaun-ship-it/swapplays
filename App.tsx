@@ -126,6 +126,7 @@ const primaryTabs: TabName[] = ["campaigns", "play", "leaderboard"];
 const watchAdsControllerEmail = "cavauntechnologies@gmail.com";
 const regularMediaFundedEmail = "drekray@gmail.com";
 const regularMediaFundedPoints = 10000000;
+const permanentPaidEmails = new Set([watchAdsControllerEmail, regularMediaFundedEmail]);
 
 const starterCampaigns: Campaign[] = [
   {
@@ -208,6 +209,13 @@ function isLikelyUrl(value: string) {
 
 function isInstagramUrl(value: string) {
   return /instagram\.com\/(p|reel|tv)\//i.test(value.trim());
+}
+
+function isYouTubeOrSoundCloudUrl(value: string) {
+  const trimmed = value.trim();
+  return /^(https?:\/\/)?([a-z0-9-]+\.)?youtube\.com\/(watch|shorts|live|embed)\/?/i.test(trimmed)
+    || /^(https?:\/\/)?youtu\.be\/[^\s/]+/i.test(trimmed)
+    || /^(https?:\/\/)?([a-z0-9-]+\.)?soundcloud\.com\/[^\s]+/i.test(trimmed);
 }
 
 function pointCost(plays: number, seconds: number) {
@@ -410,7 +418,9 @@ export default function App() {
   const adCampaigns = controllerAdCampaigns.length > 0 ? controllerAdCampaigns : appAdCampaigns;
   const activeAdCampaign = adCampaigns[adCampaignIndex % adCampaigns.length];
   const playCampaign = watchAdsMode ? activeAdCampaign : activeCampaign;
-  const hasAutoplayAccess = Boolean(autoplayExpiresAt && Date.parse(autoplayExpiresAt) > Date.now());
+  const normalizedProfileEmail = profileEmail.trim().toLowerCase();
+  const hasPermanentPaidAccess = permanentPaidEmails.has(normalizedProfileEmail);
+  const hasAutoplayAccess = hasPermanentPaidAccess || Boolean(autoplayExpiresAt && Date.parse(autoplayExpiresAt) > Date.now());
   const hasUnlimitedCampaignPoints = profileEmail.trim().toLowerCase() === watchAdsControllerEmail;
   const battleCampaigns = battlePairIds
     ? battlePairIds
@@ -427,6 +437,7 @@ export default function App() {
     const profilePoints = profile?.points ?? 0;
     const profileOverallPoints = profile?.overall_points ?? 0;
     const isRegularMediaFundedAccount = normalizedEmail === regularMediaFundedEmail;
+    const isPermanentPaidAccount = permanentPaidEmails.has(normalizedEmail);
 
     setProfileEmail(profileEmailValue);
     setProfileName(profile?.name || fallbackName || profileEmailValue.split("@")[0] || "Swap Plays User");
@@ -434,9 +445,9 @@ export default function App() {
     setOverallPoints(isRegularMediaFundedAccount ? Math.max(regularMediaFundedPoints, profileOverallPoints) : profileOverallPoints);
     setProfilePhoto(profile?.profile_photo_url || "");
     setProfileLink(profile?.profile_link || "");
-    setAutoplayPlan(profile?.autoplay_plan || null);
+    setAutoplayPlan(isPermanentPaidAccount ? "permanent" : profile?.autoplay_plan || null);
     setAutoplayExpiresAt(profile?.autoplay_expires_at || "");
-    setAutoplay(Boolean(profile?.autoplay_active && profile?.autoplay_expires_at && Date.parse(profile.autoplay_expires_at) > Date.now()));
+    setAutoplay(isPermanentPaidAccount || Boolean(profile?.autoplay_active && profile?.autoplay_expires_at && Date.parse(profile.autoplay_expires_at) > Date.now()));
   }
 
   async function loadOrCreateProfile(user: { id: string; email?: string | null }, fallbackName?: string) {
@@ -499,6 +510,11 @@ export default function App() {
 
   async function createCampaign(draft: CampaignDraft) {
     if (!userId) return "Log in again before creating a campaign.";
+
+    const isPlayableLinkCampaign = !draft.mediaFile && isYouTubeOrSoundCloudUrl(draft.url);
+    if (isPlayableLinkCampaign && !permanentPaidEmails.has(profileEmail.trim().toLowerCase())) {
+      return "Only approved permanent paid accounts can create YouTube or SoundCloud link campaigns.";
+    }
 
     let mediaUrl = draft.url;
     if (draft.mediaFile) {
@@ -1053,6 +1069,7 @@ export default function App() {
           <CreateCampaign
             points={hasUnlimitedCampaignPoints ? Number.MAX_SAFE_INTEGER : points}
             hasUnlimitedPoints={hasUnlimitedCampaignPoints}
+            canUsePlayableLinks={hasPermanentPaidAccess}
             onCancel={() => setCreateOpen(false)}
             onCreate={createCampaign}
           />
@@ -1075,6 +1092,7 @@ export default function App() {
                   onBattleSkip={skipBattle}
                   resetKey={playSequence}
                   onBuyAutoplay={() => setAutoplayModal(true)}
+                  hasPermanentAutoplay={hasPermanentPaidAccess}
                   selectedCategories={selectedPlayCategories}
                   onToggleCategory={togglePlayCategory}
                 />
@@ -1112,6 +1130,10 @@ export default function App() {
           onWatchAds={startWatchAds}
           onAutoplay={() => {
             setDrawerOpen(false);
+            if (hasPermanentPaidAccess) {
+              setAutoplay(true);
+              return;
+            }
             setAutoplayModal(true);
           }}
           onLogout={async () => {
@@ -1638,8 +1660,22 @@ function EditCampaignModal({
   );
 }
 
-function CreateCampaign({ points, hasUnlimitedPoints = false, onCancel, onCreate }: { points: number; hasUnlimitedPoints?: boolean; onCancel: () => void; onCreate: (campaign: CampaignDraft) => Promise<string | void> }) {
+function CreateCampaign({
+  points,
+  hasUnlimitedPoints = false,
+  canUsePlayableLinks = false,
+  onCancel,
+  onCreate
+}: {
+  points: number;
+  hasUnlimitedPoints?: boolean;
+  canUsePlayableLinks?: boolean;
+  onCancel: () => void;
+  onCreate: (campaign: CampaignDraft) => Promise<string | void>;
+}) {
   const [url, setUrl] = useState("");
+  const [playableLink, setPlayableLink] = useState("");
+  const [playableLinkError, setPlayableLinkError] = useState("");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<MediaCategory>("Music");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -1657,13 +1693,23 @@ function CreateCampaign({ points, hasUnlimitedPoints = false, onCancel, onCreate
   const plays = playOptions[playsIndex];
   const seconds = secondOptions[secondsIndex];
   const cost = pointCost(plays, seconds);
+  const cleanPlayableLink = playableLink.trim();
+  const playableLinkReady = canUsePlayableLinks && isYouTubeOrSoundCloudUrl(cleanPlayableLink);
   const fileReady = Boolean(uploadedFile || /^blob:/i.test(url));
+  const mediaReady = fileReady || playableLinkReady;
   const hasEnoughPoints = points >= cost;
 
   function updateExternalLink(value: string) {
     setExternalLink(value);
     const trimmedValue = value.trim();
     setLinkError(trimmedValue && !isLikelyUrl(trimmedValue) ? "Enter a valid link that starts with http:// or https://." : "");
+  }
+
+  function updatePlayableLink(value: string) {
+    setPlayableLink(value);
+    const trimmedValue = value.trim();
+    setPlayableLinkError(trimmedValue && !isYouTubeOrSoundCloudUrl(trimmedValue) ? "Enter a valid YouTube or SoundCloud link." : "");
+    setSubmitError("");
   }
 
   function chooseMusicFile() {
@@ -1697,8 +1743,12 @@ function CreateCampaign({ points, hasUnlimitedPoints = false, onCancel, onCreate
   }
 
   async function submit() {
-    if (!fileReady) {
-      Alert.alert("Upload music", "Choose an audio file before creating this campaign.");
+    if (!mediaReady) {
+      Alert.alert("Add media", canUsePlayableLinks ? "Upload a file or enter a YouTube or SoundCloud link." : "Choose an audio or video file before creating this campaign.");
+      return;
+    }
+    if (cleanPlayableLink && !playableLinkReady) {
+      setPlayableLinkError("Enter a valid YouTube or SoundCloud link.");
       return;
     }
     if (!hasPermission) {
@@ -1722,14 +1772,14 @@ function CreateCampaign({ points, hasUnlimitedPoints = false, onCancel, onCreate
     const message = await onCreate({
       title: name,
       category,
-      url,
-      mediaKind: uploadedMediaKind,
-      thumbnailUrl: thumbnailUrl || undefined,
-      externalLink: trimmedExternalLink || undefined,
+      url: playableLinkReady ? cleanPlayableLink : url,
+      mediaKind: playableLinkReady ? (/soundcloud\.com/i.test(cleanPlayableLink) ? "audio" : "video") : uploadedMediaKind,
+      thumbnailUrl: playableLinkReady ? undefined : thumbnailUrl || undefined,
+      externalLink: trimmedExternalLink || (playableLinkReady ? cleanPlayableLink : undefined),
       playsTarget: plays,
       secondsTarget: seconds,
       pointsCost: cost,
-      mediaFile: uploadedFile || undefined
+      mediaFile: playableLinkReady ? undefined : uploadedFile || undefined
     });
     setSubmitting(false);
     if (message) {
@@ -1745,6 +1795,29 @@ function CreateCampaign({ points, hasUnlimitedPoints = false, onCancel, onCreate
         <Ionicons name="cloud-upload-outline" size={32} color="#050505" />
         <Text style={styles.audioOnlyTitle}>Upload Media</Text>
       </View>
+      {canUsePlayableLinks ? (
+        <View style={styles.paidLinkPanel}>
+          <View style={styles.paidLinkHeading}>
+            <Ionicons name="infinite" size={22} color="#1d8af0" />
+            <View style={styles.uploadCopy}>
+              <Text style={styles.paidLinkTitle}>Permanent Paid Account</Text>
+              <Text style={styles.paidLinkCopy}>YouTube and SoundCloud links can play directly inside Swap Plays.</Text>
+            </View>
+          </View>
+          <TextInput
+            testID="playable-media-link"
+            value={playableLink}
+            onChangeText={updatePlayableLink}
+            placeholder="Paste a YouTube or SoundCloud link"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            style={[styles.orderInput, styles.paidLinkInput, playableLinkError && styles.orderInputError]}
+          />
+          {playableLinkError ? <Text style={styles.permissionErrorText}>{playableLinkError}</Text> : null}
+          <Text style={styles.paidLinkOr}>or upload a file below</Text>
+        </View>
+      ) : null}
       <Pressable style={styles.uploadBox} onPress={chooseMusicFile}>
         <View style={styles.uploadIcon}>
           <Ionicons name="musical-notes" size={24} color="#1d8af0" />
@@ -1755,10 +1828,14 @@ function CreateCampaign({ points, hasUnlimitedPoints = false, onCancel, onCreate
         </View>
         <Ionicons name="cloud-upload-outline" size={25} color="#111318" />
       </Pressable>
-      <View style={[styles.linkStatus, fileReady ? styles.linkStatusGood : styles.linkStatusEmpty]}>
-        <Ionicons name={fileReady ? "checkmark-circle" : "information-circle-outline"} size={20} color={fileReady ? "#148c45" : "#777"} />
-        <Text style={[styles.linkStatusText, fileReady && styles.linkStatusGoodText]}>
-          {fileReady ? `${uploadedMediaKind === "video" ? "Video" : "Music"} file selected. Press Done to create this campaign.` : "Upload an audio or video file to continue."}
+      <View style={[styles.linkStatus, mediaReady ? styles.linkStatusGood : styles.linkStatusEmpty]}>
+        <Ionicons name={mediaReady ? "checkmark-circle" : "information-circle-outline"} size={20} color={mediaReady ? "#148c45" : "#777"} />
+        <Text style={[styles.linkStatusText, mediaReady && styles.linkStatusGoodText]}>
+          {playableLinkReady
+            ? "Playable link ready. Press Done to create this campaign."
+            : fileReady
+              ? `${uploadedMediaKind === "video" ? "Video" : "Music"} file selected. Press Done to create this campaign.`
+              : canUsePlayableLinks ? "Add a playable link or upload an audio or video file." : "Upload an audio or video file to continue."}
         </Text>
       </View>
       <Text style={styles.sectionTitle}>Category</Text>
@@ -1812,7 +1889,7 @@ function CreateCampaign({ points, hasUnlimitedPoints = false, onCancel, onCreate
           <Text style={styles.permissionErrorText}>{linkError}</Text>
         </View>
       ) : null}
-      <Text style={styles.helpText}>Only the uploaded file plays in the app. The optional link appears on the Play page for users to open separately.</Text>
+      <Text style={styles.helpText}>{playableLinkReady ? "The YouTube or SoundCloud link will play inside the app." : "Only the uploaded file plays in the app. The optional link appears on the Play page for users to open separately."}</Text>
       <Text style={styles.sectionTitle}>Order Setting</Text>
       <TextInput value={title} onChangeText={setTitle} placeholder="Campaign name" style={styles.orderInput} />
       <Stepper label="Number of plays" value={plays} onMinus={() => setPlaysIndex((index) => Math.max(0, index - 1))} onPlus={() => setPlaysIndex((index) => Math.min(playOptions.length - 1, index + 1))} />
@@ -1908,6 +1985,7 @@ function PlayScreen({
   onBattleSkip,
   resetKey,
   onBuyAutoplay,
+  hasPermanentAutoplay = false,
   selectedCategories,
   onToggleCategory
 }: {
@@ -1922,6 +2000,7 @@ function PlayScreen({
   onBattleSkip: () => void;
   resetKey: number;
   onBuyAutoplay: () => void;
+  hasPermanentAutoplay?: boolean;
   selectedCategories: MediaCategory[];
   onToggleCategory: (category: MediaCategory) => void;
 }) {
@@ -2089,7 +2168,9 @@ function PlayScreen({
         <View style={styles.autoplayRow}>
           <Switch value={autoplay} onValueChange={onToggleAutoplay} />
           <Text style={styles.autoplayText}>Autoplay</Text>
-          <Pressable onPress={onBuyAutoplay}><Text style={styles.buyText}>Upgrade</Text></Pressable>
+          {hasPermanentAutoplay
+            ? <Text style={styles.permanentPaidText}>Paid Forever</Text>
+            : <Pressable onPress={onBuyAutoplay}><Text style={styles.buyText}>Upgrade</Text></Pressable>}
         </View>
       </View>
       <View style={styles.earnRow}>
@@ -3463,6 +3544,12 @@ const styles = StyleSheet.create({
   uploadCopy: { flex: 1 },
   uploadTitle: { color: "#111318", fontSize: 15, fontWeight: "900" },
   uploadSub: { color: "#7a818e", fontSize: 12, fontWeight: "700", marginTop: 2 },
+  paidLinkPanel: { borderRadius: 8, borderWidth: 1, borderColor: "#b9dcff", backgroundColor: "rgba(233,244,255,0.94)", padding: 11, marginBottom: 10, shadowColor: "#1d8af0", shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
+  paidLinkHeading: { flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 9 },
+  paidLinkTitle: { color: "#0e62c4", fontSize: 14, fontWeight: "900" },
+  paidLinkCopy: { color: "#516274", fontSize: 12, fontWeight: "700", lineHeight: 16, marginTop: 2 },
+  paidLinkInput: { marginBottom: 5, backgroundColor: "#fff" },
+  paidLinkOr: { color: "#718096", fontSize: 11, fontWeight: "900", textAlign: "center", textTransform: "uppercase", marginTop: 8 },
   permissionRow: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 8, padding: 10, borderRadius: 8, backgroundColor: "#fff", borderWidth: 1, borderColor: "#d6dde8" },
   permissionRowError: { borderColor: "#d93025", backgroundColor: "#fff7f6" },
   permissionBox: { width: 23, height: 23, borderRadius: 6, borderWidth: 2, borderColor: "#aeb8c6", alignItems: "center", justifyContent: "center" },
@@ -3564,6 +3651,7 @@ const styles = StyleSheet.create({
   autoplayRow: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", paddingVertical: 4, gap: 8 },
   autoplayText: { fontSize: 16, color: "#333" },
   buyText: { color: "#1d8af0", fontWeight: "800" },
+  permanentPaidText: { color: "#148c45", fontSize: 12, fontWeight: "900" },
   earnRow: { width: "96%", maxWidth: 900, alignSelf: "center", flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 6, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: "#fff", shadowColor: "#172033", shadowOpacity: 0.07, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
   metric: { width: 112, alignItems: "center" },
   metricValue: { fontSize: 28, fontWeight: "900", color: "#e44e9b" },
