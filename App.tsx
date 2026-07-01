@@ -37,6 +37,11 @@ type LoginCredentials = {
   isCreate: boolean;
 };
 
+type AuthActionResult = {
+  error?: string;
+  notice?: string;
+};
+
 type ProfileRow = {
   id: string;
   email: string | null;
@@ -388,6 +393,8 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
+  const [recoveryError, setRecoveryError] = useState("");
   const [userId, setUserId] = useState("");
   const [tab, setTab] = useState<TabName>("campaigns");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -700,7 +707,15 @@ export default function App() {
     }
 
     restoreSession();
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setPasswordRecovery(true);
+        setRecoveryError("");
+        setIsLoggedIn(false);
+        setAuthLoading(false);
+        return;
+      }
+
       if (!session?.user) {
         setIsLoggedIn(false);
         setUserId("");
@@ -774,47 +789,91 @@ export default function App() {
   });
 
   async function enterApp(credentials: LoginCredentials) {
-    const cleanEmail = credentials.email.trim();
+    const cleanEmail = credentials.email.trim().toLowerCase();
     const cleanName = credentials.name?.trim();
     setAuthError("");
-    const result = credentials.isCreate
-      ? await supabase.auth.signUp({
-          email: cleanEmail,
-          password: credentials.password,
-          options: {
-            data: {
-              name: cleanName || cleanEmail.split("@")[0] || "Swap Plays User"
-            }
-          }
-        })
-      : await supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password: credentials.password
-        });
-
-    if (result.error) {
-      setAuthError(result.error.message);
-      return result.error.message;
-    }
-
-    const user = result.data.user || result.data.session?.user;
-    if (!user) {
-      const message = "Check your email to confirm your account, then log in.";
-      setAuthError(message);
-      return message;
-    }
-
     try {
+      const result = credentials.isCreate
+        ? await supabase.auth.signUp({
+            email: cleanEmail,
+            password: credentials.password,
+            options: {
+              data: {
+                name: cleanName || cleanEmail.split("@")[0] || "Swap Plays User"
+              }
+            }
+          })
+        : await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password: credentials.password
+          });
+
+      if (result.error) {
+        setAuthError(result.error.message);
+        return { error: result.error.message };
+      }
+
+      if (credentials.isCreate && !result.data.session) {
+        return { notice: "Account created. Check your email to confirm it, then log in." };
+      }
+
+      const user = result.data.session?.user || result.data.user;
+      if (!user) {
+        const message = "Could not start your session. Please try logging in again.";
+        setAuthError(message);
+        return { error: message };
+      }
+
       await loadOrCreateProfile(user, cleanName);
       await loadCampaigns();
       await loadLeaderboardProfiles();
       setIsLoggedIn(true);
-      return "";
-    } catch (profileError) {
-      const message = profileError instanceof Error ? profileError.message : "Could not load your profile.";
+      return {};
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not connect to account services.";
       setAuthError(message);
-      return message;
+      return { error: message };
     }
+  }
+
+  async function requestPasswordReset(email: string): Promise<AuthActionResult> {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      return { error: "Enter your email address first." };
+    }
+
+    const redirectTo = Platform.OS === "web" ? `${window.location.origin}/?password_reset=1` : undefined;
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo });
+    if (error) return { error: error.message };
+    return { notice: "Password reset email sent. Open the link in that email to choose a new password." };
+  }
+
+  async function finishPasswordRecovery(newPassword: string): Promise<AuthActionResult> {
+    setRecoveryError("");
+    if (newPassword.length < 8) {
+      return { error: "Use at least 8 characters for your new password." };
+    }
+
+    const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      setRecoveryError(error.message);
+      return { error: error.message };
+    }
+
+    setPasswordRecovery(false);
+    if (data.user) {
+      setUserId(data.user.id);
+      setIsLoggedIn(true);
+      try {
+        await loadOrCreateProfile(data.user);
+        await loadCampaigns();
+        await loadLeaderboardProfiles();
+      } catch (profileError) {
+        const message = profileError instanceof Error ? profileError.message : "Password changed, but your profile could not be refreshed.";
+        setAuthError(message);
+      }
+    }
+    return { notice: "Password changed successfully." };
   }
 
   function advanceCampaign() {
@@ -1038,12 +1097,22 @@ export default function App() {
     );
   }
 
+  if (passwordRecovery) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <StatusBar style="light" />
+        <PasswordRecoveryScreen onUpdate={finishPasswordRecovery} authError={recoveryError} />
+      </SafeAreaView>
+    );
+  }
+
   if (!isLoggedIn) {
     return (
       <SafeAreaView style={styles.safe}>
         <StatusBar style="light" />
         <LoginScreen
           onEnter={enterApp}
+          onForgotPassword={requestPasswordReset}
           authError={authError}
         />
       </SafeAreaView>
@@ -1104,7 +1173,7 @@ export default function App() {
               <View style={[styles.screenPane, tab === "leaderboard" ? styles.activePane : styles.hiddenPane]} pointerEvents={tab === "leaderboard" ? "auto" : "none"}>
                 <LeaderboardScreen campaigns={visibleCampaigns} leaderboardProfiles={leaderboardProfiles} userId={userId} profileName={profileName.trim() || "Swap Plays User"} profileEmail={profileEmail} profilePhoto={profilePhoto} profileLink={profileLink} overallPoints={overallPoints} />
               </View>
-              {tab === "redeem" && <RedeemScreen points={points} badge={badge} onRedeem={(amount) => setPoints((value) => value + amount)} />}
+              {tab === "redeem" && <RedeemScreen points={points} badge={badge} onRedeem={setPoints} />}
               {tab === "invite" && <InviteScreen />}
               {tab === "awards" && <AwardsScreen overallPoints={overallPoints} onAwardPress={openPlaqueForBadge} />}
               {tab === "how" && <HowScreen onPlaquePress={openPlaqueForBadge} />}
@@ -1217,13 +1286,22 @@ function BadgeIcon({ badge }: { badge: string }) {
   );
 }
 
-function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCredentials) => Promise<string | void>; authError: string }) {
+function LoginScreen({
+  onEnter,
+  onForgotPassword,
+  authError
+}: {
+  onEnter: (credentials: LoginCredentials) => Promise<AuthActionResult>;
+  onForgotPassword: (email: string) => Promise<AuthActionResult>;
+  authError: string;
+}) {
   const { width, height } = useWindowDimensions();
   const [mode, setMode] = useState<"login" | "create">("login");
   const [name, setName] = useState("Swap Plays User");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const isCreate = mode === "create";
   const loginArtRatio = 1083 / 1452;
@@ -1236,7 +1314,7 @@ function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCrede
   const visibleError = error || authError;
 
   async function submit() {
-    const cleanEmail = email.trim();
+    const cleanEmail = email.trim().toLowerCase();
     const cleanName = name.trim();
     if (!cleanEmail || !cleanEmail.includes("@")) {
       setError("Enter a valid email to continue.");
@@ -1247,15 +1325,33 @@ function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCrede
       return;
     }
     setError("");
+    setNotice("");
     setSubmitting(true);
-    const result = await onEnter({
-      email: cleanEmail,
-      password,
-      name: isCreate ? cleanName || cleanEmail.split("@")[0] || "Swap Plays User" : undefined,
-      isCreate
-    });
-    if (result) setError(result);
-    setSubmitting(false);
+    try {
+      const result = await onEnter({
+        email: cleanEmail,
+        password,
+        name: isCreate ? cleanName || cleanEmail.split("@")[0] || "Swap Plays User" : undefined,
+        isCreate
+      });
+      if (result.error) setError(result.error);
+      if (result.notice) setNotice(result.notice);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function forgotPassword() {
+    setError("");
+    setNotice("");
+    setSubmitting(true);
+    try {
+      const result = await onForgotPassword(email);
+      if (result.error) setError(result.error);
+      if (result.notice) setNotice(result.notice);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function googleSignIn() {
@@ -1289,6 +1385,7 @@ function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCrede
                 onPress={() => {
                   setMode("login");
                   setError("");
+                  setNotice("");
                 }}
               >
                 <Text style={[styles.loginRealModeText, !isCreate ? styles.loginRealModeTextDark : styles.loginRealModeTextLight]}>Log In</Text>
@@ -1300,6 +1397,7 @@ function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCrede
                 onPress={() => {
                   setMode("create");
                   setError("");
+                  setNotice("");
                 }}
               >
                 <Text style={[styles.loginRealModeText, isCreate ? styles.loginRealModeTextDark : styles.loginRealModeTextLight]}>Create Account</Text>
@@ -1337,6 +1435,12 @@ function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCrede
                 <Text style={styles.loginErrorText}>{visibleError}</Text>
               </View>
             ) : null}
+            {notice ? (
+              <View style={styles.loginRealSuccess}>
+                <Ionicons name="checkmark-circle" size={15} color="#167a3f" />
+                <Text style={styles.loginSuccessText}>{notice}</Text>
+              </View>
+            ) : null}
             <Pressable testID="login-submit" accessibilityRole="button" disabled={submitting} style={[styles.loginRealSubmitButton, submitting && styles.loginButtonDisabled]} onPress={submit}>
               <Text style={styles.loginArtworkSubmitText}>{submitting ? "Please wait..." : isCreate ? "Create Account  ->" : "Log In  ->"}</Text>
             </Pressable>
@@ -1351,7 +1455,8 @@ function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCrede
                 testID="login-forgot-password"
                 accessibilityRole="button"
                 hitSlop={8}
-                onPress={() => Alert.alert("Password reset", "Password reset will be connected when account services are added.")}
+                disabled={submitting}
+                onPress={forgotPassword}
               >
                 <Text style={styles.loginRealFooterText}>Forgot password?</Text>
               </Pressable>
@@ -1379,6 +1484,88 @@ function LoginScreen({ onEnter, authError }: { onEnter: (credentials: LoginCrede
       >
         {loginArtwork}
       </ScrollView>
+    </View>
+  );
+}
+
+function PasswordRecoveryScreen({
+  onUpdate,
+  authError
+}: {
+  onUpdate: (password: string) => Promise<AuthActionResult>;
+  authError: string;
+}) {
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function updatePassword() {
+    if (password.length < 8) {
+      setError("Use at least 8 characters for your new password.");
+      return;
+    }
+    if (password !== confirmation) {
+      setError("The passwords do not match.");
+      return;
+    }
+
+    setError("");
+    setSubmitting(true);
+    try {
+      const result = await onUpdate(password);
+      if (result.error) setError(result.error);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <View style={styles.loginScreen}>
+      <View style={styles.passwordRecoveryCard}>
+        <Image source={require("./assets/swap-plays-symbol-transparent.png")} style={styles.passwordRecoveryLogo} resizeMode="contain" />
+        <Text style={styles.passwordRecoveryTitle}>Choose a new password</Text>
+        <Text style={styles.passwordRecoveryCopy}>Enter your new password below to finish recovering your Swap Plays account.</Text>
+        <View style={styles.passwordRecoveryInputRow}>
+          <Ionicons name="lock-closed" size={21} color="#050608" />
+          <TextInput
+            testID="recovery-password-input"
+            value={password}
+            onChangeText={setPassword}
+            placeholder="New password"
+            placeholderTextColor="#777"
+            secureTextEntry
+            style={styles.loginRealInput}
+          />
+        </View>
+        <View style={styles.passwordRecoveryInputRow}>
+          <Ionicons name="lock-closed" size={21} color="#050608" />
+          <TextInput
+            testID="recovery-confirm-input"
+            value={confirmation}
+            onChangeText={setConfirmation}
+            placeholder="Confirm new password"
+            placeholderTextColor="#777"
+            secureTextEntry
+            style={styles.loginRealInput}
+          />
+        </View>
+        {error || authError ? (
+          <View style={styles.loginRealError}>
+            <Ionicons name="alert-circle" size={15} color="#d93025" />
+            <Text style={styles.loginErrorText}>{error || authError}</Text>
+          </View>
+        ) : null}
+        <Pressable
+          testID="recovery-submit"
+          accessibilityRole="button"
+          disabled={submitting}
+          style={[styles.loginRealSubmitButton, styles.passwordRecoverySubmit, submitting && styles.loginButtonDisabled]}
+          onPress={updatePassword}
+        >
+          <Text style={styles.loginArtworkSubmitText}>{submitting ? "Updating..." : "Update Password"}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -2428,28 +2615,20 @@ function EmbeddedMedia({ source }: { source: { kind: string; url: string } }) {
 }
 
 const pointRewardOptions = [
-  { label: "5,000", points: 5000, passCode: "SP-5000" },
-  { label: "10,000", points: 10000, passCode: "SP-10000" },
-  { label: "25,000", points: 25000, passCode: "SP-25000" },
-  { label: "50,000", points: 50000, passCode: "SP-50000" }
+  { label: "5,000", points: 5000 },
+  { label: "10,000", points: 10000 },
+  { label: "25,000", points: 25000 },
+  { label: "50,000", points: 50000 }
 ];
 type PointRewardOption = (typeof pointRewardOptions)[number];
 
-function RedeemScreen({ points, badge, onRedeem }: { points: number; badge: string; onRedeem: (amount: number) => void }) {
+function RedeemScreen({ points, badge, onRedeem }: { points: number; badge: string; onRedeem: (newBalance: number) => void }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [selectedReward, setSelectedReward] = useState<PointRewardOption | null>(null);
   const [passCode, setPassCode] = useState("");
   const [passCodeError, setPassCodeError] = useState("");
-
-  function submitPointRedemption(option: PointRewardOption) {
-    const request = {
-      pointsAdded: option.points,
-      newBalance: points + option.points,
-      requestedAt: new Date().toISOString()
-    };
-    console.log("Point redemption completed", request);
-  }
+  const [redeeming, setRedeeming] = useState(false);
 
   function openPassCodePrompt(option: PointRewardOption) {
     setSelectedReward(option);
@@ -2465,15 +2644,36 @@ function RedeemScreen({ points, badge, onRedeem }: { points: number; badge: stri
     setPassCodeError("");
   }
 
-  function redeemPoints(option: PointRewardOption) {
-    if (passCode.trim().toUpperCase() !== option.passCode) {
-      setPassCodeError("Enter a valid pass code to redeem these points.");
+  async function redeemPoints(option: PointRewardOption) {
+    const cleanCode = passCode.trim();
+    if (!cleanCode) {
+      setPassCodeError("Enter your pass code.");
       return;
     }
+
+    setRedeeming(true);
+    const { data, error: redeemError } = await supabase.rpc("redeem_pass_code", {
+      input_code: cleanCode,
+      expected_points: option.points
+    });
+    setRedeeming(false);
+
+    if (redeemError) {
+      setPassCodeError(redeemError.message || "This pass code is invalid or has already been used.");
+      return;
+    }
+
+    const redemption = Array.isArray(data) ? data[0] : data;
+    const newBalance = Number(redemption?.new_balance);
+    const pointsAdded = Number(redemption?.points_added);
+    if (!Number.isFinite(newBalance) || pointsAdded !== option.points) {
+      setPassCodeError("The redemption could not be confirmed. Please try again.");
+      return;
+    }
+
     setError("");
     setSuccess(`${option.points.toLocaleString()} points added to your balance.`);
-    onRedeem(option.points);
-    submitPointRedemption(option);
+    onRedeem(newBalance);
     closePassCodePrompt();
     Alert.alert("Points redeemed", `${option.points.toLocaleString()} points were added to your balance.`);
   }
@@ -2543,12 +2743,13 @@ function RedeemScreen({ points, badge, onRedeem }: { points: number; badge: stri
               </View>
             ) : null}
             <Pressable
-              style={styles.passCodeButton}
+              style={[styles.passCodeButton, redeeming && { opacity: 0.6 }]}
+              disabled={redeeming}
               onPress={() => {
                 if (selectedReward) redeemPoints(selectedReward);
               }}
             >
-              <Text style={styles.passCodeButtonText}>Redeem Points</Text>
+              <Text style={styles.passCodeButtonText}>{redeeming ? "Checking..." : "Redeem Points"}</Text>
             </Pressable>
           </View>
         </View>
@@ -3403,6 +3604,12 @@ const styles = StyleSheet.create({
   loginArtwork: { alignSelf: "center", overflow: "hidden" },
   loginArtworkMobile: { overflow: "visible", marginBottom: 0 },
   loginArtworkImage: { borderRadius: 0 },
+  passwordRecoveryCard: { width: "92%", maxWidth: 460, alignSelf: "center", marginTop: "auto", marginBottom: "auto", borderRadius: 20, backgroundColor: "#fff", padding: 24, shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 22, shadowOffset: { width: 0, height: 12 } },
+  passwordRecoveryLogo: { width: 76, height: 76, alignSelf: "center", marginBottom: 8 },
+  passwordRecoveryTitle: { color: "#080a0e", fontSize: 26, fontWeight: "900", textAlign: "center", marginBottom: 8 },
+  passwordRecoveryCopy: { color: "#596170", fontSize: 15, fontWeight: "600", textAlign: "center", lineHeight: 21, marginBottom: 18 },
+  passwordRecoveryInputRow: { minHeight: 52, borderWidth: 1.5, borderColor: "#c5ccd6", borderRadius: 10, flexDirection: "row", alignItems: "center", paddingHorizontal: 13, marginBottom: 10 },
+  passwordRecoverySubmit: { minHeight: 50, marginTop: 4 },
   loginRealCard: { position: "absolute", left: "4.8%", right: "4.8%", top: "54.2%", minHeight: "37.4%", zIndex: 30, borderRadius: 17, backgroundColor: "#fff", padding: 10, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 9 } },
   loginRealModeRow: { flexDirection: "row", gap: 12, marginBottom: 7 },
   loginRealModeButton: { flex: 1, minHeight: 37, borderRadius: 8, alignItems: "center", justifyContent: "center", borderWidth: 1.5 },
@@ -3414,6 +3621,7 @@ const styles = StyleSheet.create({
   loginRealInputRow: { minHeight: 38, borderRadius: 8, borderWidth: 1.3, borderColor: "#bfc4cc", flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, marginBottom: 6, backgroundColor: "#fff" },
   loginRealInput: { flex: 1, minHeight: 35, color: "#111318", fontSize: 15, fontWeight: "600", padding: 0 },
   loginRealError: { minHeight: 24, borderRadius: 8, backgroundColor: "#fdecec", flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, marginBottom: 6 },
+  loginRealSuccess: { minHeight: 30, borderRadius: 8, backgroundColor: "#e7f8ed", flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 6 },
   loginRealSubmitButton: { minHeight: 40, borderRadius: 8, backgroundColor: "#07090d", alignItems: "center", justifyContent: "center", marginTop: 1 },
   loginButtonDisabled: { opacity: 0.62 },
   loginGoogleButton: { minHeight: 33, borderRadius: 8, borderWidth: 1.3, borderColor: "#c5cbd4", backgroundColor: "#fff", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 6 },
@@ -3485,6 +3693,7 @@ const styles = StyleSheet.create({
   loginInput: { flex: 1, color: "#111318", fontSize: 16, fontWeight: "900", paddingVertical: 10 },
   loginErrorRow: { flexDirection: "row", alignItems: "center", gap: 7, borderRadius: 8, backgroundColor: "#fdecec", padding: 9, marginBottom: 9 },
   loginErrorText: { flex: 1, color: "#d93025", fontSize: 13, fontWeight: "800" },
+  loginSuccessText: { flex: 1, color: "#167a3f", fontSize: 13, fontWeight: "800" },
   loginPrimaryButton: { minHeight: 56, borderRadius: 12, backgroundColor: "#1d8af0", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, shadowColor: "#1d8af0", shadowOpacity: 0.24, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, overflow: "hidden" },
   loginPrimaryText: { color: "#fff", fontSize: 18, fontWeight: "900" },
   loginPrimaryPlay: { position: "absolute", right: 18 },
