@@ -134,72 +134,6 @@ const regularMediaFundedEmail = "drekray@gmail.com";
 const regularMediaFundedPoints = 10000000;
 const permanentPaidEmails = new Set([watchAdsControllerEmail, regularMediaFundedEmail]);
 
-const starterCampaigns: Campaign[] = [
-  {
-    id: "c1",
-    title: "Sample Media Campaign",
-    artist: "Media",
-    category: "Music",
-    url: "https://example.com/audio.mp3",
-    mediaKind: "audio",
-    externalLink: "https://example.com",
-    platform: "audio",
-    playsTarget: 10,
-    secondsTarget: 45,
-    pointsCost: 450,
-    playsDone: 0,
-    createdAt: "2026-06-11 09:28"
-  },
-  {
-    id: "c2",
-    title: "Creator Media Promo",
-    artist: "Media",
-    category: "Podcast",
-    url: "https://example.com/creator-track.mp3",
-    mediaKind: "audio",
-    externalLink: "https://example.com",
-    platform: "audio",
-    playsTarget: 50,
-    secondsTarget: 60,
-    pointsCost: 3000,
-    playsDone: 0,
-    createdAt: "2026-06-10 15:40"
-  }
-];
-
-const appAdCampaigns: Campaign[] = [
-  {
-    id: "swap-ad-1",
-    title: "Creator Media Promo",
-    artist: "Swap Plays Ad",
-    category: "Other",
-    url: "https://example.com/creator-track.mp3",
-    mediaKind: "audio",
-    externalLink: "https://swapplays.app",
-    platform: "audio",
-    playsTarget: 1,
-    secondsTarget: 60,
-    pointsCost: 0,
-    playsDone: 0,
-    createdAt: "2026-06-17 09:30"
-  },
-  {
-    id: "swap-ad-2",
-    title: "Sample Media Campaign",
-    artist: "Swap Plays Ad",
-    category: "Other",
-    url: "https://example.com/audio.mp3",
-    mediaKind: "audio",
-    externalLink: "https://swapplays.app",
-    platform: "audio",
-    playsTarget: 1,
-    secondsTarget: 45,
-    pointsCost: 0,
-    playsDone: 0,
-    createdAt: "2026-06-17 09:31"
-  }
-];
-
 const playOptions = [10, ...Array.from({ length: 200000 }, (_, index) => (index + 1) * 50)];
 const secondOptions = [45, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360, 390, 420, 450, 480, 510, 540, 570, 600];
 
@@ -400,7 +334,7 @@ export default function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [autoplayModal, setAutoplayModal] = useState(false);
-  const [campaigns, setCampaigns] = useState(starterCampaigns);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [points, setPoints] = useState(0);
   const [overallPoints, setOverallPoints] = useState(0);
   const [autoplay, setAutoplay] = useState(false);
@@ -426,8 +360,8 @@ export default function App() {
   const playableCampaigns = visibleCampaigns.filter((campaign) => campaign.playsDone < campaign.playsTarget && selectedPlayCategories.includes(campaign.category));
   const activeCampaign = playableCampaigns.length > 0 ? playableCampaigns[activeCampaignIndex % playableCampaigns.length] : undefined;
   const controllerAdCampaigns = visibleCampaigns.filter((campaign) => campaign.playsDone < campaign.playsTarget && campaign.ownerEmail?.trim().toLowerCase() === watchAdsControllerEmail);
-  const adCampaigns = controllerAdCampaigns.length > 0 ? controllerAdCampaigns : appAdCampaigns;
-  const activeAdCampaign = adCampaigns[adCampaignIndex % adCampaigns.length];
+  const adCampaigns = controllerAdCampaigns;
+  const activeAdCampaign = adCampaigns.length > 0 ? adCampaigns[adCampaignIndex % adCampaigns.length] : undefined;
   const playCampaign = watchAdsMode ? activeAdCampaign : activeCampaign;
   const normalizedProfileEmail = profileEmail.trim().toLowerCase();
   const hasPermanentPaidAccess = permanentPaidEmails.has(normalizedProfileEmail);
@@ -950,6 +884,7 @@ export default function App() {
   }
 
   function awardAdPlay() {
+    if (!activeAdCampaign) return;
     const earned = earningFor(activeAdCampaign.secondsTarget);
     setPoints((value) => value + earned);
     addOverallPoints(earned);
@@ -968,7 +903,7 @@ export default function App() {
       Alert.alert("No points earned", "You must let the countdown finish before ad points are added.");
     }
     setPlaySequence((value) => value + 1);
-    setAdCampaignIndex((index) => (index + 1) % adCampaigns.length);
+    setAdCampaignIndex((index) => (adCampaigns.length > 0 ? (index + 1) % adCampaigns.length : 0));
   }
 
   function startWatchAds() {
@@ -2267,7 +2202,9 @@ function PlayScreen({
   }
 
   if (!campaign) {
-    const message = selectedCategories.length === 0
+    const message = isAdMode
+      ? "There are no Watch Ads campaigns available right now."
+      : selectedCategories.length === 0
       ? "Pick at least one category to start watching media."
       : "No active campaigns match your selected categories yet.";
     return (
