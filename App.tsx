@@ -42,6 +42,14 @@ type AuthActionResult = {
   notice?: string;
 };
 
+const webInputNoFocusStyle =
+  Platform.OS === "web"
+    ? ({
+        outlineStyle: "none",
+        boxShadow: "none"
+      } as any)
+    : null;
+
 type ProfileRow = {
   id: string;
   email: string | null;
@@ -1311,34 +1319,34 @@ function LoginScreen({
       style={[styles.loginArtwork, isMobileWebLogin && styles.loginArtworkMobile, { width: loginArtWidth, height: loginArtHeight }]}
       imageStyle={styles.loginArtworkImage}
     >
-          <View style={styles.loginRealCard}>
-            <View style={styles.loginRealModeRow}>
+          <View style={[styles.loginRealCard, isMobileWebLogin && styles.loginRealCardMobile]}>
+            <View style={[styles.loginRealModeRow, isMobileWebLogin && styles.loginRealModeRowMobile]}>
               <Pressable
                 testID="login-tab-login"
                 accessibilityRole="button"
-                style={[styles.loginRealModeButton, !isCreate ? styles.loginRealModeDark : styles.loginRealModeLight]}
+                style={[styles.loginRealModeButton, isMobileWebLogin && styles.loginRealModeButtonMobile, !isCreate ? styles.loginRealModeDark : styles.loginRealModeLight]}
                 onPress={() => {
                   setMode("login");
                   setError("");
                   setNotice("");
                 }}
               >
-                <Text style={[styles.loginRealModeText, !isCreate ? styles.loginRealModeTextDark : styles.loginRealModeTextLight]}>Log In</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.loginRealModeText, isMobileWebLogin && styles.loginRealModeTextMobile, !isCreate ? styles.loginRealModeTextDark : styles.loginRealModeTextLight]}>Log In</Text>
               </Pressable>
               <Pressable
                 testID="login-tab-create"
                 accessibilityRole="button"
-                style={[styles.loginRealModeButton, isCreate ? styles.loginRealModeDark : styles.loginRealModeLight]}
+                style={[styles.loginRealModeButton, isMobileWebLogin && styles.loginRealModeButtonMobile, isCreate ? styles.loginRealModeDark : styles.loginRealModeLight]}
                 onPress={() => {
                   setMode("create");
                   setError("");
                   setNotice("");
                 }}
               >
-                <Text style={[styles.loginRealModeText, isCreate ? styles.loginRealModeTextDark : styles.loginRealModeTextLight]}>Create Account</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.loginRealModeText, isMobileWebLogin && styles.loginRealModeTextMobile, isCreate ? styles.loginRealModeTextDark : styles.loginRealModeTextLight]}>Create Account</Text>
               </Pressable>
             </View>
-            <View style={styles.loginRealInputRow}>
+            <View style={[styles.loginRealInputRow, isMobileWebLogin && styles.loginRealInputRowMobile]}>
               <Ionicons name="mail" size={21} color="#050608" />
               <TextInput
                 testID="login-email-input"
@@ -1349,10 +1357,10 @@ function LoginScreen({
                 keyboardType="email-address"
                 placeholder="creator@example.com"
                 placeholderTextColor="#111318"
-                style={styles.loginRealInput}
+                style={[styles.loginRealInput, isMobileWebLogin && styles.loginRealInputMobile, webInputNoFocusStyle]}
               />
             </View>
-            <View style={styles.loginRealInputRow}>
+            <View style={[styles.loginRealInputRow, isMobileWebLogin && styles.loginRealInputRowMobile]}>
               <Ionicons name="lock-closed" size={21} color="#050608" />
               <TextInput
                 testID="login-password-input"
@@ -1361,7 +1369,7 @@ function LoginScreen({
                 placeholder="Password"
                 placeholderTextColor="#777"
                 secureTextEntry
-                style={styles.loginRealInput}
+                style={[styles.loginRealInput, isMobileWebLogin && styles.loginRealInputMobile, webInputNoFocusStyle]}
               />
             </View>
             {visibleError ? (
@@ -1376,8 +1384,8 @@ function LoginScreen({
                 <Text style={styles.loginSuccessText}>{notice}</Text>
               </View>
             ) : null}
-            <Pressable testID="login-submit" accessibilityRole="button" disabled={submitting} style={[styles.loginRealSubmitButton, submitting && styles.loginButtonDisabled]} onPress={submit}>
-              <Text style={styles.loginArtworkSubmitText}>{submitting ? "Please wait..." : isCreate ? "Create Account  ->" : "Log In  ->"}</Text>
+            <Pressable testID="login-submit" accessibilityRole="button" disabled={submitting} style={[styles.loginRealSubmitButton, isMobileWebLogin && styles.loginRealSubmitButtonMobile, submitting && styles.loginButtonDisabled]} onPress={submit}>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.loginArtworkSubmitText, isMobileWebLogin && styles.loginArtworkSubmitTextMobile]}>{submitting ? "Please wait..." : isCreate ? "Create Account  ->" : "Log In  ->"}</Text>
             </Pressable>
             <Pressable testID="login-google" accessibilityRole="button" style={styles.loginGoogleButton} onPress={googleSignIn}>
               <View style={styles.loginGoogleIcon}>
@@ -3548,18 +3556,25 @@ const styles = StyleSheet.create({
   passwordRecoveryInputRow: { minHeight: 52, borderWidth: 1.5, borderColor: "#c5ccd6", borderRadius: 10, flexDirection: "row", alignItems: "center", paddingHorizontal: 13, marginBottom: 10 },
   passwordRecoverySubmit: { minHeight: 50, marginTop: 4 },
   loginRealCard: { position: "absolute", left: "4.8%", right: "4.8%", top: "54.2%", minHeight: "37.4%", zIndex: 30, borderRadius: 17, backgroundColor: "#fff", padding: 10, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 9 } },
+  loginRealCardMobile: { left: "5.6%", right: "5.6%", top: "54.1%", padding: 8, borderRadius: 15, overflow: "hidden" },
   loginRealModeRow: { flexDirection: "row", gap: 12, marginBottom: 7 },
+  loginRealModeRowMobile: { gap: 8, marginBottom: 7 },
   loginRealModeButton: { flex: 1, minHeight: 37, borderRadius: 8, alignItems: "center", justifyContent: "center", borderWidth: 1.5 },
+  loginRealModeButtonMobile: { minHeight: 42, paddingHorizontal: 5 },
   loginRealModeDark: { backgroundColor: "#2d8cf0", borderColor: "#1f6fd3", shadowColor: "#2d8cf0", shadowOpacity: 0.32, shadowRadius: 11, shadowOffset: { width: 0, height: 6 } },
   loginRealModeLight: { backgroundColor: "#fff", borderColor: "#111318" },
   loginRealModeText: { fontSize: 16, fontWeight: "900" },
+  loginRealModeTextMobile: { fontSize: 15, lineHeight: 18, textAlign: "center" },
   loginRealModeTextDark: { color: "#fff" },
   loginRealModeTextLight: { color: "#111318" },
-  loginRealInputRow: { minHeight: 38, borderRadius: 8, borderWidth: 1.3, borderColor: "#bfc4cc", flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, marginBottom: 6, backgroundColor: "#fff" },
-  loginRealInput: { flex: 1, minHeight: 35, color: "#111318", fontSize: 15, fontWeight: "600", padding: 0 },
+  loginRealInputRow: { minHeight: 38, borderRadius: 8, borderWidth: 1.3, borderColor: "#bfc4cc", flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, marginBottom: 6, backgroundColor: "#fff", overflow: "hidden" },
+  loginRealInputRowMobile: { minHeight: 43, gap: 8, paddingHorizontal: 10 },
+  loginRealInput: { flex: 1, minWidth: 0, minHeight: 35, color: "#111318", fontSize: 15, fontWeight: "600", padding: 0 },
+  loginRealInputMobile: { fontSize: 14, minHeight: 39 },
   loginRealError: { minHeight: 24, borderRadius: 8, backgroundColor: "#fdecec", flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, marginBottom: 6 },
   loginRealSuccess: { minHeight: 30, borderRadius: 8, backgroundColor: "#e7f8ed", flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 6 },
   loginRealSubmitButton: { minHeight: 40, borderRadius: 8, backgroundColor: "#07090d", alignItems: "center", justifyContent: "center", marginTop: 1 },
+  loginRealSubmitButtonMobile: { minHeight: 44 },
   loginButtonDisabled: { opacity: 0.62 },
   loginGoogleButton: { minHeight: 33, borderRadius: 8, borderWidth: 1.3, borderColor: "#c5cbd4", backgroundColor: "#fff", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 6 },
   loginGoogleIcon: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", borderWidth: 1, borderColor: "#d9dee7" },
@@ -3579,6 +3594,7 @@ const styles = StyleSheet.create({
   loginArtworkModeTextLight: { color: "#111318" },
   loginArtworkSubmitButton: { position: "absolute", left: "7.5%", top: "79.8%", width: "85%", height: "6.9%", zIndex: 20, borderRadius: 7, backgroundColor: "#07090d", alignItems: "center", justifyContent: "center" },
   loginArtworkSubmitText: { color: "#fff", fontSize: 18, fontWeight: "900" },
+  loginArtworkSubmitTextMobile: { fontSize: 17, textAlign: "center" },
   loginHotspotForgot: { left: "7.5%", top: "88.1%", width: "28%", height: "4.4%" },
   loginHotspotGuest: { right: "7.5%", top: "88.1%", width: "32%", height: "4.4%" },
   loginArtworkInput: { position: "absolute", left: "15.8%", width: "75%", height: "5.3%", zIndex: 21, color: "#111318", fontSize: 17, fontWeight: "600", padding: 0, backgroundColor: "rgba(255,255,255,0.01)" },
